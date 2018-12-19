@@ -259,7 +259,8 @@ void processSerial() {
 void loop() {
   myusb.Task();
   usbMIDI.read();
-
+  int serialnum;
+  
   // Print out information about different devices.
   for (uint8_t i = 0; i < CNT_DEVICES; i++) {
     if (*drivers[i] != driver_active[i]) {
@@ -274,9 +275,22 @@ void loop() {
         if (psz && *psz) Serial.printf("  manufacturer: %s\n", psz);
         psz = drivers[i]->product();
         if (psz && *psz) Serial.printf("  product: %s\n", psz);
+
         psz = drivers[i]->serialNumber();
         if (psz && *psz) Serial.printf("  Serial: %s\n", psz);
+        //"m128%*1[-_]%d" = series, "mk%d" = kit, "m40h%d" = 40h, "m%d" = mext
+       if (sscanf((const char*)psz, "m40h%d", &serialnum)){  
+          Serial.print("  40h device");
+        } else if (sscanf((const char*)psz, "m128%*1[-_]%d", &serialnum)){ 
+          Serial.print("  monome series 128 device");
+        } else if (sscanf((const char*)psz, "mk%d", &serialnum)){ 
+          Serial.print("   monome kit device");
+        } else if (sscanf((const char*)psz, "m%d", &serialnum)){ 
+          Serial.print("  mext device");
+        }
 
+ 
+ 
         // If this is a new Serial device.
         if (drivers[i] == &userial) {
           // Lets try first outputting something to our USerial to see if it will go out...
