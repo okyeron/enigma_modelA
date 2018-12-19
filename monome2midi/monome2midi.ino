@@ -273,19 +273,21 @@ void loop() {
 
         const uint8_t *psz = drivers[i]->manufacturer();
         if (psz && *psz) Serial.printf("  manufacturer: %s\n", psz);
-        psz = drivers[i]->product();
-        if (psz && *psz) Serial.printf("  product: %s\n", psz);
+        
+        const char *psp = (const char*)drivers[i]->product();
+        if (psp && *psp) Serial.printf("  product: %s\n", psp);
 
-        psz = drivers[i]->serialNumber();
-        if (psz && *psz) Serial.printf("  Serial: %s\n", psz);
+        const char *pss = (const char*)drivers[i]->serialNumber();
+        if (pss && *pss) Serial.printf("  Serial: %s\n", pss);
+        
         //"m128%*1[-_]%d" = series, "mk%d" = kit, "m40h%d" = 40h, "m%d" = mext
-       if (sscanf((const char*)psz, "m40h%d", &serialnum)){  
+       if (sscanf(pss, "m40h%d", &serialnum)){  
           Serial.print("  40h device");
-        } else if (sscanf((const char*)psz, "m128%*1[-_]%d", &serialnum)){ 
+        } else if (sscanf(pss, "m128%*1[-_]%d", &serialnum)){ 
           Serial.print("  monome series 128 device");
-        } else if (sscanf((const char*)psz, "mk%d", &serialnum)){ 
+        } else if (sscanf(pss, "mk%d", &serialnum)){ 
           Serial.print("   monome kit device");
-        } else if (sscanf((const char*)psz, "m%d", &serialnum)){ 
+        } else if (sscanf(pss, "m%d", &serialnum)){ 
           Serial.print("  mext device");
         }
 
