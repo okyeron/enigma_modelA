@@ -14,7 +14,7 @@ const char * driver_names[CNT_DEVICES] = {"Hub1", "Hub2", "USERIAL1" };
 bool driver_active[CNT_DEVICES] = {false, false, false};
 
 
-String deviceID  = "monome";
+String deviceID  = "monome";   // kruft?
 String serialNum = "m1000010"; // this # does not get used -  serial number from usb_names is picked up instead
 const uint8_t gridX    = 16;   // Will be either 8 or 16
 const uint8_t gridY    = 8;                 // standard for 128
