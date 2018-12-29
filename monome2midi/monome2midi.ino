@@ -257,10 +257,16 @@ void processSerial() {
 
 
 void loop() {
-  myusb.Task();
-  usbMIDI.read();
   int serialnum;
   
+  myusb.Task();
+  //usbMIDI.read();
+
+  while (usbMIDI.read()) {
+     // controllers must call .read() to keep the queue clear even if they are not responding to MIDI
+  }
+
+ 
   // Print out information about different devices.
   for (uint8_t i = 0; i < CNT_DEVICES; i++) {
     if (*drivers[i] != driver_active[i]) {
@@ -301,7 +307,8 @@ void loop() {
       }
     }
   }
-  
+
+  // process incoming serial 
   if (userial.available() > 0) {
     do { processSerial();  } 
     while (userial.available() > 16);
@@ -314,12 +321,15 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
   uint8_t i, x, y, z;
   // When using MIDIx4 or MIDIx16, usbMIDI.getCable() can be used
   // to read which of the virtual MIDI cables received this message.
+  usbMIDI.sendNoteOn(note, velocity, channel);  
+  
   Serial.print("Note On, ch=");
   Serial.print(channel, DEC);
   Serial.print(", note=");
   Serial.print(note, DEC);
   Serial.print(", velocity=");
   Serial.println(velocity, DEC);
+  
       writeInt(0x18); // /prefix/led/level/set x y i
       writeInt(pgm_read_byte(&i2xy128[note][0]));
       writeInt(pgm_read_byte(&i2xy128[note][1]));  
@@ -328,6 +338,8 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 
 void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
   uint8_t i, x, y, z;
+  usbMIDI.sendNoteOff(note, 0, channel); 
+  
   Serial.print("Note Off, ch=");
   Serial.print(channel, DEC);
   Serial.print(", note=");
@@ -341,6 +353,7 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 }
 
 void myControlChange(byte channel, byte control, byte value) {
+  usbMIDI.sendControlChange(control, value, channel);
   Serial.print("Control Change, ch=");
   Serial.print(channel, DEC);
   Serial.print(", control=");
