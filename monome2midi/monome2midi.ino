@@ -18,6 +18,8 @@ MIDIDevice midi04(myusb);
 // MIDI CHANNEL
 const byte midiChannel = 1;       // The MIDI Channel to send the commands over
 
+// A variable to know how long the LED has been turned on
+elapsedMillis ledOnMillis;
 
 USBDriver *drivers[] = {&hub1, &hub2, &userial1, &userial2, &midi01, &midi02, &midi03, &midi04};
 #define CNT_DEVICES (sizeof(drivers)/sizeof(drivers[0]))
@@ -66,6 +68,8 @@ uint8_t i2xy(uint8_t i) {
 
 void setup() {
   Serial.begin(115200);
+  pinMode(13, OUTPUT); // LED pin
+  digitalWrite(13, LOW);
   
   // Wait 1.5 seconds before turning on USB Host.  If connected USB devices
   // use too much power, Teensy at least completes USB enumeration, which
@@ -121,8 +125,7 @@ void processSerial(USBSerial &thisSerial) {
 
   identifierSent = thisSerial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
-                                              // b = command (ie. query, enable, led, key, frame)
-                 
+                                              // b = command (ie. query, enable, led, key, frame)         
   switch (identifierSent) {
     case 0x00:                  // device information
       //Serial.println("0x00");
@@ -216,7 +219,7 @@ void processSerial(USBSerial &thisSerial) {
       Serial.print("Send note-off: ");
       Serial.print(xy2i(readX, readY));
       Serial.println(" ");
-     
+
       break;
     case 0x21:                               
       readX = readInt(thisSerial);
@@ -237,7 +240,7 @@ void processSerial(USBSerial &thisSerial) {
       Serial.print("Send note-on : ");
       Serial.print(xy2i(readX, readY));
       Serial.println(" ");
-     
+
       break;
  
     case 0x40:        //   d-line-in / change to low  
@@ -273,7 +276,8 @@ void processSerial(USBSerial &thisSerial) {
       Serial.print("button: ");
       Serial.print(n);
       Serial.println(" up");
-    //bytes: 2
+
+      //bytes: 2
       //structure: [0x51, n]
       //n = encoder number
       //  0-255
@@ -286,6 +290,7 @@ void processSerial(USBSerial &thisSerial) {
       Serial.print("button: ");
       Serial.print(n);
       Serial.println(" down");
+
       //bytes: 2
       //structure: [0x52, n]
       //n = encoder number
@@ -314,12 +319,15 @@ void processSerial(USBSerial &thisSerial) {
 
 
 void loop() {
+  bool activity = false;
   myusb.Task(); 
   
   while (midi01.read()) {
+    activity = true;
   }
   while (usbMIDI.read()) {
      // controllers must call .read() to keep the queue clear even if they are not responding to MIDI
+    activity = true;
   }
 
   // Print out information about different devices.
@@ -327,12 +335,21 @@ void loop() {
 
   // process incoming serial 
   if (userial1.available() > 0) {
-    do { processSerial(userial1);  } 
+    do { processSerial(userial1); activity = true; } 
     while (userial1.available() > 16);
   }
   if (userial2.available() > 0) {
-    do { processSerial(userial2);  } 
+    do { processSerial(userial2); activity = true; } 
     while (userial2.available() > 16);
+  }
+
+  // blink the LED when any activity has happened
+  if (activity) {
+    digitalWriteFast(13, HIGH); // LED on
+    ledOnMillis = 0;
+  }
+  if (ledOnMillis > 15) {
+    digitalWriteFast(13, LOW);  // LED off
   }
 
 
