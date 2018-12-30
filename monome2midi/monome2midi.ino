@@ -28,6 +28,7 @@ const byte midiChannel = 1;       // The MIDI Channel to send the commands over
 // A variable to know how long the LED has been turned on
 elapsedMillis ledOnMillis;
 
+// Standard USBDriver devices
 USBDriver *drivers[] = {&hub1, &hub2, &userial1, &userial2, &midi01, &midi02, &midi03, &midi04, &hid1, &keyboard1};
 #define CNT_DEVICES (sizeof(drivers)/sizeof(drivers[0]))
 const char * driver_names[CNT_DEVICES] = {"Hub1", "Hub2", "USERIAL1", "USERIAL2","MIDI1", "MIDI2", "MIDI3", "MIDI4", "HID", "Keyboard"  };
@@ -37,7 +38,7 @@ bool driver_active[CNT_DEVICES] = {false, false, false, false, false, false, fal
 USBHIDInput *hiddrivers[] = {&mouse1, &joystick1, &rawhid1};
 #define CNT_HIDDEVICES (sizeof(hiddrivers)/sizeof(hiddrivers[0]))
 const char * hid_driver_names[CNT_DEVICES] = {"Mouse1","Joystick1", "RawHid1"};
-bool hid_driver_active[CNT_DEVICES] = {false, false};
+bool hid_driver_active[CNT_DEVICES] = {false, false, "false"};
 
 int encoderCCs[] {16,17,18,19,20,21,22,23};
 
