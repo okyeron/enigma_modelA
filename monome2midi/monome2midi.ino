@@ -15,16 +15,29 @@ MIDIDevice midi02(myusb);
 MIDIDevice midi03(myusb);
 MIDIDevice midi04(myusb);
 
+// not really using these, but there for future use - See USBHost_t36 "mouse" example for more
+USBHIDParser hid1(myusb);
+KeyboardController keyboard1(myusb);
+MouseController    mouse1(myusb);
+JoystickController joystick1(myusb);
+RawHIDController rawhid1(myusb);
+
 // MIDI CHANNEL
 const byte midiChannel = 1;       // The MIDI Channel to send the commands over
 
 // A variable to know how long the LED has been turned on
 elapsedMillis ledOnMillis;
 
-USBDriver *drivers[] = {&hub1, &hub2, &userial1, &userial2, &midi01, &midi02, &midi03, &midi04};
+USBDriver *drivers[] = {&hub1, &hub2, &userial1, &userial2, &midi01, &midi02, &midi03, &midi04, &hid1, &keyboard1};
 #define CNT_DEVICES (sizeof(drivers)/sizeof(drivers[0]))
-const char * driver_names[CNT_DEVICES] = {"Hub1", "Hub2", "USERIAL1", "USERIAL2","MIDI1", "MIDI2", "MIDI3", "MIDI4"  };
-bool driver_active[CNT_DEVICES] = {false, false, false, false, false, false, false};
+const char * driver_names[CNT_DEVICES] = {"Hub1", "Hub2", "USERIAL1", "USERIAL2","MIDI1", "MIDI2", "MIDI3", "MIDI4", "HID", "Keyboard"  };
+bool driver_active[CNT_DEVICES] = {false, false, false, false, false, false, false, false, false, false};
+
+// Lets also look at HID Input devices
+USBHIDInput *hiddrivers[] = {&mouse1, &joystick1, &rawhid1};
+#define CNT_HIDDEVICES (sizeof(hiddrivers)/sizeof(hiddrivers[0]))
+const char * hid_driver_names[CNT_DEVICES] = {"Mouse1","Joystick1", "RawHid1"};
+bool hid_driver_active[CNT_DEVICES] = {false, false};
 
 int encoderCCs[] {16,17,18,19,20,21,22,23};
 
