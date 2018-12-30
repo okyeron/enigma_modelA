@@ -1,4 +1,6 @@
+
 #include <USBHost_t36.h>
+
 #define USBBAUD 115200
 uint32_t baud = USBBAUD;
 uint32_t format = USBHOST_SERIAL_8N1;
@@ -6,18 +8,31 @@ uint32_t format = USBHOST_SERIAL_8N1;
 USBHost myusb; // usb host mode
 USBHub hub1(myusb);
 USBHub hub2(myusb);
-USBSerial userial(myusb);
+USBSerial userial1(myusb);
+USBSerial userial2(myusb);
+MIDIDevice midi01(myusb);
+MIDIDevice midi02(myusb);
+MIDIDevice midi03(myusb);
+MIDIDevice midi04(myusb);
 
-USBDriver *drivers[] = {&hub1, &hub2, &userial};
+// MIDI CHANNEL
+const byte midiChannel = 1;       // The MIDI Channel to send the commands over
+
+
+USBDriver *drivers[] = {&hub1, &hub2, &userial1, &userial2, &midi01, &midi02, &midi03, &midi04};
 #define CNT_DEVICES (sizeof(drivers)/sizeof(drivers[0]))
-const char * driver_names[CNT_DEVICES] = {"Hub1", "Hub2", "USERIAL1" };
-bool driver_active[CNT_DEVICES] = {false, false, false};
+const char * driver_names[CNT_DEVICES] = {"Hub1", "Hub2", "USERIAL1", "USERIAL2","MIDI1", "MIDI2", "MIDI3", "MIDI4"  };
+bool driver_active[CNT_DEVICES] = {false, false, false, false, false, false, false};
 
+int encoderCCs[] {16,17,18,19,20,21,22,23};
 
-String deviceID  = "monome";   // kruft?
+/* --- */
+// kruft?
+String deviceID  = "monome";   
 String serialNum = "m1000010"; // this # does not get used -  serial number from usb_names is picked up instead
 const uint8_t gridX    = 16;   // Will be either 8 or 16
 const uint8_t gridY    = 8;                 // standard for 128
+/* --- */
 
 static const uint8_t PROGMEM
 xy2i128[8][16] = {
@@ -50,53 +65,69 @@ uint8_t i2xy(uint8_t i) {
 
 
 void setup() {
-
   Serial.begin(115200);
+  
+  // Wait 1.5 seconds before turning on USB Host.  If connected USB devices
+  // use too much power, Teensy at least completes USB enumeration, which
+  // makes isolating the power issue easier.
+  delay(1500);
   myusb.begin();
   Serial.println("\n\nUSB Host - Serial");
-  userial.begin(baud, format);
+  userial1.begin(baud, format);
+  //midi01.begin();
+
+  // midi i/o
+  midi01.setHandleNoteOn(myNoteOn);
+  midi01.setHandleNoteOff(myNoteOff);
+  midi01.setHandleControlChange(myControlChange);
 
   usbMIDI.setHandleNoteOn(myNoteOn);
   usbMIDI.setHandleNoteOff(myNoteOff);
   usbMIDI.setHandleControlChange(myControlChange);
   //writeInt(0x12);
+  
+  delay(3000);
+  //activate drivers ?
+  deviceInfo();
 }
 
 
-uint8_t readInt() {
-  uint8_t val = userial.read();
+uint8_t readInt(USBSerial &thisSerial) {
+  uint8_t val = thisSerial.read();
   //Serial2.write(val); // send to serial 2 pins for debug
   return val; 
 }
 
-void writeInt(uint8_t value) {
+void writeInt(uint8_t value, USBSerial &thisSerial) {
 #if DEBUG
    //Serial.print(value,HEX);       // For debug, values are written to the serial monitor in Hexidecimal
    Serial.print(value);       
    Serial.println(" ");
 #else
-   userial.write(value);           // standard is to write out the 8 bit value on serial
+   thisSerial.write(value);           // standard is to write out the 8 bit value on serial
 #endif
 }
 
-void processSerial() {
+
+void processSerial(USBSerial &thisSerial) {
   uint8_t identifierSent;                     // command byte sent from controller to matrix
   uint8_t deviceAddress;                      // device address sent from controller
   uint8_t dummy, gridNum;                              // for reading in data not used by the matrix
   uint8_t intensity = 15;                     // default full led intensity
   uint8_t readX, readY;                       // x and y values read from driver
   uint8_t deviceX, deviceY, devSect, devNum;                   // x and y device size read from driver
-  uint8_t i, x, y, z;
+  uint8_t i, x, y, z, n;
+  int8_t  d;
 
-
-  identifierSent = userial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
+  identifierSent = thisSerial.read();             // get command identifier: first byte of packet is identifier in the form: [(a << 4) + b]
                                               // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
                                               // b = command (ie. query, enable, led, key, frame)
                  
   switch (identifierSent) {
     case 0x00:                  // device information
-      devSect = readInt();                // system/query response 0x00 -> 0x00
-      devNum = readInt();                // grids
+      //Serial.println("0x00");
+      devSect = readInt(thisSerial);                // system/query response 0x00 -> 0x00
+      devNum = readInt(thisSerial);                // grids
       Serial.print("section: ");
       Serial.print(devSect);
       Serial.print(", number: ");
@@ -106,51 +137,51 @@ void processSerial() {
       break;
 
     case 0x01:                  // system / ID
+      //Serial.println("0x01");
       for (i = 0; i < 32; i++) {              // has to be 32
-          Serial.print(readInt());          
+          Serial.print(readInt(thisSerial));          
       }
       Serial.println(" ");
       
-//      for (i = 0; i < 32; i++) {
-//        deviceID[i] = userial.read();
-//      }
-
       break;
 
     case 0x02:      // system / report grid offset - 4 bytes
-      gridNum = readInt();                      // n = grid number
-      readX = readInt();                      // an offset of 8 is valid only for 16 x 8 monome
-      readY = readInt();                      // an offset is invalid for y as it's only 8
-      Serial.print("ofeset: ");
+      //Serial.println("0x02");
+      gridNum = readInt(thisSerial);                      // n = grid number
+      readX = readInt(thisSerial);                      // an offset of 8 is valid only for 16 x 8 monome
+      readY = readInt(thisSerial);                      // an offset is invalid for y as it's only 8
+      Serial.print("n: ");
       Serial.print(gridNum);
-      Serial.print(", : ");
+      Serial.print(", x: ");
       Serial.print(readX);
-      Serial.print(" ");
+      Serial.print(" , y: ");
       Serial.print(readY);
       Serial.println(" ");
      break;
 
     case 0x03:            // system / report grid size
-      readX = readInt();                      // an offset of 8 is valid only for 16 x 8 monome
-      readY = readInt();                      // an offset is invalid for y as it's only 8
-      Serial.print("grid size: ");
+      //Serial.println("0x03");
+      readX = readInt(thisSerial);                      // an offset of 8 is valid only for 16 x 8 monome
+      readY = readInt(thisSerial);                      // an offset is invalid for y as it's only 8
+      Serial.print("x: ");
       Serial.print(readX);
-      Serial.print(" ");
+      Serial.print(" y: ");
       Serial.print(readY);
       Serial.println(" ");
 
       break;
 
     case 0x04:                                // system / report ADDR
-      readX = readInt();                      // a ADDR
-      readY = readInt();                      // b type
+      //Serial.println("0x04");
+      readX = readInt(thisSerial);                      // a ADDR
+      readY = readInt(thisSerial);                      // b type
  
       break;
 
-
     case 0x0F:                               // system / report firmware version
+      //Serial.println("0x0F");
       for (i = 0; i < 8; i++) {              // 8 character string
-          Serial.print(readInt());          
+          Serial.print(readInt(thisSerial));          
       }
  
       break;
@@ -167,38 +198,42 @@ void processSerial() {
     structure: [0x21, x, y]
     description: key down at (x,y)
     */
-      readX = readInt();
-      readY = readInt();
+      readX = readInt(thisSerial);
+      readY = readInt(thisSerial);
       Serial.print("grid key: ");
       Serial.print(readX);
       Serial.print(" ");
       Serial.print(readY);
       Serial.print(" up - ");
+      
       // turn off led
-      writeInt(0x10); // /prefix/led/set x y 0
-      writeInt(readX);
-      writeInt(readY);
+      writeInt(0x10, thisSerial); // /prefix/led/set x y 0
+      writeInt(readX, thisSerial);
+      writeInt(readY, thisSerial);
+      
       // note off
-      myNoteOff(1, xy2i(readX, readY), 0) ;
+      myNoteOff(midiChannel, xy2i(readX, readY), 0) ;
       Serial.print("Send note-off: ");
       Serial.print(xy2i(readX, readY));
       Serial.println(" ");
      
       break;
     case 0x21:                               
-      readX = readInt();
-      readY = readInt();
+      readX = readInt(thisSerial);
+      readY = readInt(thisSerial);
       Serial.print("grid key: ");
       Serial.print(readX);
       Serial.print(" ");
       Serial.print(readY);
       Serial.print(" dn - ");
+      
       // turn on led
-      writeInt(0x11); // /prefix/led/set x y 1
-      writeInt(readX);
-      writeInt(readY);
+      writeInt(0x11, thisSerial); // /prefix/led/set x y 1
+      writeInt(readX, thisSerial);
+      writeInt(readY, thisSerial);
+
       // note on
-      myNoteOn(1, xy2i(readX, readY), 60) ;
+      myNoteOn(midiChannel, xy2i(readX, readY), 60) ;
       Serial.print("Send note-on : ");
       Serial.print(xy2i(readX, readY));
       Serial.println(" ");
@@ -211,7 +246,18 @@ void processSerial() {
       break;
       
    // 0x5x are encoder
-    case 0x50:    // /prefix/enc/delta n d
+    case 0x50:    // /prefix/enc/delta n d - [0x50, n, d]
+      //Serial.println("0x50");
+      n = readInt(thisSerial);
+      d = readInt(thisSerial);
+      Serial.print("encoder: ");
+      Serial.print(n);
+      Serial.print(" : ");
+      Serial.print(d);
+      Serial.println();
+
+      myControlChange(midiChannel, encoderCCs[n], d);
+      
       //bytes: 3
       //structure: [0x50, n, d]
       //n = encoder number
@@ -221,15 +267,25 @@ void processSerial() {
       //description: encoder position change
       break;
       
-    case 0x51:    // /prefix/enc/key n d (d=0 key up)
-      //bytes: 2
+    case 0x51:    // /prefix/enc/key n (key up)
+      //Serial.println("0x51");
+      n = readInt(thisSerial);
+      Serial.print("button: ");
+      Serial.print(n);
+      Serial.println(" up");
+    //bytes: 2
       //structure: [0x51, n]
       //n = encoder number
       //  0-255
       //description: encoder switch up
       break;
       
-    case 0x52:    // /prefix/enc/key n d (d=1 key down)
+    case 0x52:    // /prefix/enc/key n (key down)
+      //Serial.println("0x52");
+      n = readInt(thisSerial);
+      Serial.print("button: ");
+      Serial.print(n);
+      Serial.println(" down");
       //bytes: 2
       //structure: [0x52, n]
       //n = encoder number
@@ -248,8 +304,9 @@ void processSerial() {
 
 
     default:
-      Serial.print(identifierSent);
-      Serial.println(" ");     
+      //Serial.print("default: ");
+      //Serial.print(String(identifierSent, HEX));
+      //Serial.println(" ");     
       break;
 
   }
@@ -257,17 +314,34 @@ void processSerial() {
 
 
 void loop() {
-  int serialnum;
+  myusb.Task(); 
   
-  myusb.Task();
-  //usbMIDI.read();
-
+  while (midi01.read()) {
+  }
   while (usbMIDI.read()) {
      // controllers must call .read() to keep the queue clear even if they are not responding to MIDI
   }
 
- 
   // Print out information about different devices.
+  deviceInfo();
+
+  // process incoming serial 
+  if (userial1.available() > 0) {
+    do { processSerial(userial1);  } 
+    while (userial1.available() > 16);
+  }
+  if (userial2.available() > 0) {
+    do { processSerial(userial2);  } 
+    while (userial2.available() > 16);
+  }
+
+
+}
+
+void deviceInfo(){
+  int serialnum;
+  char maker[6];
+
   for (uint8_t i = 0; i < CNT_DEVICES; i++) {
     if (*drivers[i] != driver_active[i]) {
       if (driver_active[i]) {
@@ -279,42 +353,36 @@ void loop() {
 
         const uint8_t *psz = drivers[i]->manufacturer();
         if (psz && *psz) Serial.printf("  manufacturer: %s\n", psz);
+        sprintf(maker, "%s", psz);
         
         const char *psp = (const char*)drivers[i]->product();
         if (psp && *psp) Serial.printf("  product: %s\n", psp);
 
         const char *pss = (const char*)drivers[i]->serialNumber();
         if (pss && *pss) Serial.printf("  Serial: %s\n", pss);
-        
-        //"m128%*1[-_]%d" = series, "mk%d" = kit, "m40h%d" = 40h, "m%d" = mext
-       if (sscanf(pss, "m40h%d", &serialnum)){  
-          Serial.print("  40h device");
-        } else if (sscanf(pss, "m128%*1[-_]%d", &serialnum)){ 
-          Serial.print("  monome series 128 device");
-        } else if (sscanf(pss, "mk%d", &serialnum)){ 
-          Serial.print("   monome kit device");
-        } else if (sscanf(pss, "m%d", &serialnum)){ 
-          Serial.print("  mext device");
-        }
 
- 
+        // check for monome types
+        if  (String(maker) == "monome") {
+          //"m128%*1[-_]%d" = series, "mk%d" = kit, "m40h%d" = 40h, "m%d" = mext
+          if (sscanf(pss, "m40h%d", &serialnum)){  
+            Serial.println("  40h device");
+          } else if (sscanf(pss, "m128%*1[-_]%d", &serialnum)){ 
+            Serial.println("  monome series 128 device");
+          } else if (sscanf(pss, "mk%d", &serialnum)){ 
+            Serial.println("   monome kit device");
+          } else if (sscanf(pss, "m%d", &serialnum)){ 
+            Serial.println("  mext device");
+          }
+        }
  
         // If this is a new Serial device.
-        if (drivers[i] == &userial) {
+        if (drivers[i] == &userial1) {
           // Lets try first outputting something to our USerial to see if it will go out...
-          userial.begin(baud);
+          userial1.begin(baud, format);
         }
       }
     }
   }
-
-  // process incoming serial 
-  if (userial.available() > 0) {
-    do { processSerial();  } 
-    while (userial.available() > 16);
-  }
-  
-
 }
 
 void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -330,10 +398,11 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
   Serial.print(", velocity=");
   Serial.println(velocity, DEC);
   
-      writeInt(0x18); // /prefix/led/level/set x y i
-      writeInt(pgm_read_byte(&i2xy128[note][0]));
-      writeInt(pgm_read_byte(&i2xy128[note][1]));  
-      writeInt(velocity);  
+      // echo midi note-on back to grid
+      writeInt(0x18, userial1); // /prefix/led/level/set x y i
+      writeInt(pgm_read_byte(&i2xy128[note][0]), userial1);
+      writeInt(pgm_read_byte(&i2xy128[note][1]), userial1);  
+      writeInt(velocity, userial1);  
 }
 
 void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -346,10 +415,12 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
   Serial.print(note, DEC);
   Serial.print(", velocity=");
   Serial.println(velocity, DEC);
-      writeInt(0x18); // /prefix/led/set x y 0
-      writeInt(pgm_read_byte(&i2xy128[note][0]));
-      writeInt(pgm_read_byte(&i2xy128[note][1]));  
-      writeInt(0);  
+
+      // echo midi note-off back to grid
+      writeInt(0x18, userial1); // /prefix/led/set x y 0
+      writeInt(pgm_read_byte(&i2xy128[note][0]), userial1);
+      writeInt(pgm_read_byte(&i2xy128[note][1]), userial1);  
+      writeInt(0, userial1);  
 }
 
 void myControlChange(byte channel, byte control, byte value) {
