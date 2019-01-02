@@ -1,9 +1,15 @@
 
 #include <USBHost_t36.h>
+#include <MIDI.h>
+#include <Bounce.h>
 
 #define USBBAUD 115200
 uint32_t baud = USBBAUD;
 uint32_t format = USBHOST_SERIAL_8N1;
+
+#define BUTTON1 7
+#define BUTTON2 8
+#define LED 13
 
 USBHost myusb; // usb host mode
 USBHub hub1(myusb);
@@ -22,11 +28,14 @@ MouseController    mouse1(myusb);
 JoystickController joystick1(myusb);
 RawHIDController rawhid1(myusb);
 
-// MIDI CHANNEL
-const byte midiChannel = 1;       // The MIDI Channel to send the commands over
+const byte numberButtons = 2;
+long buttonval[numberButtons] {};
+Bounce pushbutton1 = Bounce(BUTTON1, 10);  // 10 ms debounce
+Bounce pushbutton2 = Bounce(BUTTON2, 10);  // 10 ms debounce
+Bounce *buttons[numberButtons] {&pushbutton1,  &pushbutton2};
 
-// A variable to know how long the LED has been turned on
-elapsedMillis ledOnMillis;
+// Create the Hardware MIDI-out port
+MIDI_CREATE_DEFAULT_INSTANCE();
 
 // Standard USBDriver devices
 USBDriver *drivers[] = {&hub1, &hub2, &userial1, &userial2, &midi01, &midi02, &midi03, &midi04, &hid1, &keyboard1};
@@ -40,7 +49,15 @@ USBHIDInput *hiddrivers[] = {&mouse1, &joystick1, &rawhid1};
 const char * hid_driver_names[CNT_DEVICES] = {"Mouse1","Joystick1", "RawHid1"};
 bool hid_driver_active[CNT_DEVICES] = {false, false, "false"};
 
+
+// map encoder # to a CC
 int encoderCCs[] {16,17,18,19,20,21,22,23};
+
+// MIDI CHANNEL
+const byte midiChannel = 1;       // The MIDI Channel to send the commands over
+
+// A variable to know how long the LED has been turned on
+elapsedMillis ledOnMillis;
 
 /* --- */
 // kruft?
@@ -78,52 +95,116 @@ uint8_t i2xy(uint8_t i) {
     return pgm_read_byte(&i2xy128[i][1]);
 }
 
-
+// SETUP
 
 void setup() {
+  MIDI.begin(MIDI_CHANNEL_OMNI);
   Serial.begin(115200);
-  pinMode(13, OUTPUT); // LED pin
-  digitalWrite(13, LOW);
-  
+  pinMode(LED, OUTPUT); // LED pin
+  digitalWrite(LED, LOW);
+
+  pinMode(BUTTON1, INPUT_PULLUP); // BUTTON 1
+  pinMode(BUTTON2, INPUT_PULLUP); // BUTTON 2
+
   // Wait 1.5 seconds before turning on USB Host.  If connected USB devices
   // use too much power, Teensy at least completes USB enumeration, which
   // makes isolating the power issue easier.
   delay(1500);
   myusb.begin();
   Serial.println("\n\nUSB Host - Serial");
-  userial1.begin(baud, format);
-  //midi01.begin();
 
-  // midi i/o
+  // USB connected midi device i/o
   midi01.setHandleNoteOn(myNoteOn);
   midi01.setHandleNoteOff(myNoteOff);
   midi01.setHandleControlChange(myControlChange);
+
+  MIDI.setHandleNoteOn(myNoteOn);
+  MIDI.setHandleNoteOff(myNoteOff);
+  MIDI.setHandleControlChange(myControlChange);
 
   usbMIDI.setHandleNoteOn(myNoteOn);
   usbMIDI.setHandleNoteOff(myNoteOff);
   usbMIDI.setHandleControlChange(myControlChange);
   //writeInt(0x12);
   
-  delay(3000);
-  //activate drivers ?
+  delay(2000);
+  
+  //get device info
   deviceInfo();
 }
 
+// MAIN LOOP
+
+void loop() {
+  bool activity = false;
+  myusb.Task(); 
+
+  // START BUTTONS LOOP
+  for (byte z = 0; z < numberButtons; z++) {
+    buttons[z]->update();
+    if (buttons[z]->risingEdge()) { // release
+      //  do release things - like turn off LED
+      digitalWrite(LED, HIGH);  // LED off
+      buttonval[z] = 0;
+      Serial.print("button:");
+      Serial.print(z+1);
+      Serial.println(" released" );
+    }
+    if (buttons[z]->fallingEdge()) {  // press
+      // do press things - like turn onf LED
+      digitalWrite(LED, LOW);   // LED on
+      buttonval[z] = 1;
+      Serial.print("button:");
+      Serial.print(z+1);
+      Serial.println(" pressed" );
+    }
+  } // END BUTTONS LOOP
+
+
+  // Read MIDI from USB HUB connected MIDI Devices
+  while (midi01.read()) {
+    activity = true;
+  }
+  // REad USB MIDI
+  while (usbMIDI.read()) {
+     // controllers must call .read() to keep the queue clear even if they are not responding to MIDI
+    activity = true;
+  }
+
+  // Print out information about different devices.
+  deviceInfo();
+
+  // process incoming serial from Monomes
+  if (userial1.available() > 0) {
+    do { processSerial(userial1); activity = true; } 
+    while (userial1.available() > 16);
+  }
+  if (userial2.available() > 0) {
+    do { processSerial(userial2); activity = true; } 
+    while (userial2.available() > 16);
+  }
+
+  // blink the LED when any activity has happened
+  if (activity) {
+    digitalWriteFast(13, HIGH); // LED on
+    ledOnMillis = 0;
+  }
+  if (ledOnMillis > 15) {
+    digitalWriteFast(13, LOW);  // LED off
+  }
+
+}
+
+
+// MISC FUNCTIONS
 
 uint8_t readInt(USBSerial &thisSerial) {
   uint8_t val = thisSerial.read();
-  //Serial2.write(val); // send to serial 2 pins for debug
   return val; 
 }
 
 void writeInt(uint8_t value, USBSerial &thisSerial) {
-#if DEBUG
-   //Serial.print(value,HEX);       // For debug, values are written to the serial monitor in Hexidecimal
-   Serial.print(value);       
-   Serial.println(" ");
-#else
    thisSerial.write(value);           // standard is to write out the 8 bit value on serial
-#endif
 }
 
 
@@ -150,7 +231,6 @@ void processSerial(USBSerial &thisSerial) {
       Serial.print(", number: ");
       Serial.print(devNum);
       Serial.println(" ");
-
       break;
 
     case 0x01:                  // system / ID
@@ -159,7 +239,6 @@ void processSerial(USBSerial &thisSerial) {
           Serial.print(readInt(thisSerial));          
       }
       Serial.println(" ");
-      
       break;
 
     case 0x02:      // system / report grid offset - 4 bytes
@@ -185,14 +264,12 @@ void processSerial(USBSerial &thisSerial) {
       Serial.print(" y: ");
       Serial.print(readY);
       Serial.println(" ");
-
       break;
 
     case 0x04:                                // system / report ADDR
       //Serial.println("0x04");
       readX = readInt(thisSerial);                      // a ADDR
       readY = readInt(thisSerial);                      // b type
- 
       break;
 
     case 0x0F:                               // system / report firmware version
@@ -200,7 +277,6 @@ void processSerial(USBSerial &thisSerial) {
       for (i = 0; i < 8; i++) {              // 8 character string
           Serial.print(readInt(thisSerial));          
       }
- 
       break;
 
     case 0x20:                               
@@ -287,7 +363,7 @@ void processSerial(USBSerial &thisSerial) {
     case 0x51:    // /prefix/enc/key n (key up)
       //Serial.println("0x51");
       n = readInt(thisSerial);
-      Serial.print("button: ");
+      Serial.print("key: ");
       Serial.print(n);
       Serial.println(" up");
 
@@ -301,7 +377,7 @@ void processSerial(USBSerial &thisSerial) {
     case 0x52:    // /prefix/enc/key n (key down)
       //Serial.println("0x52");
       n = readInt(thisSerial);
-      Serial.print("button: ");
+      Serial.print("key: ");
       Serial.print(n);
       Serial.println(" down");
 
@@ -320,55 +396,15 @@ void processSerial(USBSerial &thisSerial) {
       break;
     case 0x81:        //   tilt - 8 bytes [0x80, n, xh, xl, yh, yl, zh, zl]
       break;
-
-
+      
     default:
-      //Serial.print("default: ");
-      //Serial.print(String(identifierSent, HEX));
-      //Serial.println(" ");     
-      break;
+       break;
 
   }
 }
 
 
-void loop() {
-  bool activity = false;
-  myusb.Task(); 
-  
-  while (midi01.read()) {
-    activity = true;
-  }
-  while (usbMIDI.read()) {
-     // controllers must call .read() to keep the queue clear even if they are not responding to MIDI
-    activity = true;
-  }
-
-  // Print out information about different devices.
-  deviceInfo();
-
-  // process incoming serial 
-  if (userial1.available() > 0) {
-    do { processSerial(userial1); activity = true; } 
-    while (userial1.available() > 16);
-  }
-  if (userial2.available() > 0) {
-    do { processSerial(userial2); activity = true; } 
-    while (userial2.available() > 16);
-  }
-
-  // blink the LED when any activity has happened
-  if (activity) {
-    digitalWriteFast(13, HIGH); // LED on
-    ledOnMillis = 0;
-  }
-  if (ledOnMillis > 15) {
-    digitalWriteFast(13, LOW);  // LED off
-  }
-
-
-}
-
+// FUNCTION TO PRINT DEVICE INFO
 void deviceInfo(){
   int serialnum;
   char maker[6];
@@ -416,11 +452,14 @@ void deviceInfo(){
   }
 }
 
+// MIDI NOTE/CC HANDLERS
+
 void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
   uint8_t i, x, y, z;
   // When using MIDIx4 or MIDIx16, usbMIDI.getCable() can be used
   // to read which of the virtual MIDI cables received this message.
-  usbMIDI.sendNoteOn(note, velocity, channel);  
+  usbMIDI.sendNoteOn(note, velocity, channel); 
+  MIDI.sendNoteOn(note, velocity, channel);   
   
   Serial.print("Note On, ch=");
   Serial.print(channel, DEC);
@@ -439,6 +478,7 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
   uint8_t i, x, y, z;
   usbMIDI.sendNoteOff(note, 0, channel); 
+  MIDI.sendNoteOff(note, 0, channel); 
   
   Serial.print("Note Off, ch=");
   Serial.print(channel, DEC);
@@ -456,6 +496,8 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 
 void myControlChange(byte channel, byte control, byte value) {
   usbMIDI.sendControlChange(control, value, channel);
+  MIDI.sendControlChange(control, value, channel);
+  
   Serial.print("Control Change, ch=");
   Serial.print(channel, DEC);
   Serial.print(", control=");
