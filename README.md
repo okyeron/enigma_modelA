@@ -9,6 +9,13 @@ controller -> app -> midi
 ```
 enigma is a teensy 3.6 based USBhost device for monome to MIDI translation, hosted applications (polyearthsea et.al) and more.
 
+## Plug connections (Steckerverbindungen)
+* usbmidi (USB A connector)
+* usbmidi (USB micro B connector)
+* midi minijack in
+* midi minijack out
+* i2c minijack
+
 
 ## Compilation
 * You must compile this with Tools->USB type set to Serial+MIDI.
