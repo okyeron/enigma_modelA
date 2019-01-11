@@ -10,10 +10,11 @@ enigma is a teensy 3.6 based USBhost device for monome to MIDI translation, host
 
 
 ## Compilation
-* Upgrade to Arduino 1.8.8 and Teensyduino 1.45
-* Ardiuno versions before 1.8.5 will likely error compile
 * You must compile this with Tools->USB type set to Serial+MIDI.
-* Be sure that the board speed is set to 120mhz (overclock) for maximum repsonsiveness.
+* Be sure that the board speed is set to 96mhz or 120mhz (overclock) for maximum repsonsiveness.
+* Tested with Arduino 1.8.8 and Teensyduino 1.45
+* Most recent Teensyduino is required (1.45)
+* Ardiuno versions before 1.8.5 will likely error on compile (due to old midi libs)
 
 
 ## Input device support
@@ -27,4 +28,5 @@ Can also support these with some more coding
 * HID 
 
 ## Troubleshooting
+* Upgrade to Arduino 1.8.8 and Teensyduino 1.45
 * Update to the newest Arduino/Teensduino for USB hubs to work.
