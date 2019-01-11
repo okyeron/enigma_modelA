@@ -1,10 +1,10 @@
 # enigma - a cipher machine
 
-monome serial -> usbmidi
-monome serial -> midi
-midi -> usbmidi
-usbmidi -> midi
-controller -> apps -> midi
+monome serial -> usbmidi  
+monome serial -> midi  
+midi -> usbmidi  
+usbmidi -> midi 
+controller -> app -> midi  
 
 enigma is a teensy 3.6 based USBhost device for monome to MIDI translation, hosted applications (polyearthsea et.al) and more.
 
