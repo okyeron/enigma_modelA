@@ -1,4 +1,12 @@
 
+/* Enigma
+ *  
+
+ *  
+ */
+
+
+
 #include <USBHost_t36.h>
 #include <MIDI.h>
 #include <Bounce.h>
@@ -117,6 +125,15 @@ void setup() {
   midi01.setHandleNoteOn(myNoteOn);
   midi01.setHandleNoteOff(myNoteOff);
   midi01.setHandleControlChange(myControlChange);
+  midi02.setHandleNoteOn(myNoteOn);
+  midi02.setHandleNoteOff(myNoteOff);
+  midi02.setHandleControlChange(myControlChange);
+  midi03.setHandleNoteOn(myNoteOn);
+  midi03.setHandleNoteOff(myNoteOff);
+  midi03.setHandleControlChange(myControlChange);
+  midi04.setHandleNoteOn(myNoteOn);
+  midi04.setHandleNoteOff(myNoteOff);
+  midi04.setHandleControlChange(myControlChange);
 
   MIDI.setHandleNoteOn(myNoteOn);
   MIDI.setHandleNoteOff(myNoteOff);
@@ -163,6 +180,15 @@ void loop() {
 
   // Read MIDI from USB HUB connected MIDI Devices
   while (midi01.read()) {
+    activity = true;
+  }
+  while (midi02.read()) {
+    activity = true;
+  }
+  while (midi03.read()) {
+    activity = true;
+  }
+  while (midi04.read()) {
     activity = true;
   }
   // REad USB MIDI
@@ -467,7 +493,13 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
   Serial.print(note, DEC);
   Serial.print(", velocity=");
   Serial.println(velocity, DEC);
-  
+
+      // echo midi note-on back to midi device?
+      midi01.sendNoteOn(note, velocity, channel);   
+      midi02.sendNoteOn(note, velocity, channel);   
+      midi03.sendNoteOn(note, velocity, channel);   
+      midi04.sendNoteOn(note, velocity, channel);   
+      
       // echo midi note-on back to grid
       writeInt(0x18, userial1); // /prefix/led/level/set x y i
       writeInt(pgm_read_byte(&i2xy128[note][0]), userial1);
@@ -487,7 +519,13 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
   Serial.print(", velocity=");
   Serial.println(velocity, DEC);
 
-      // echo midi note-off back to grid
+       // echo midi note-off back to midi device?
+      midi01.sendNoteOff(note, velocity, channel);   
+      midi02.sendNoteOff(note, velocity, channel);   
+      midi03.sendNoteOff(note, velocity, channel);   
+      midi04.sendNoteOff(note, velocity, channel);   
+
+     // echo midi note-off back to grid
       writeInt(0x18, userial1); // /prefix/led/set x y 0
       writeInt(pgm_read_byte(&i2xy128[note][0]), userial1);
       writeInt(pgm_read_byte(&i2xy128[note][1]), userial1);  
@@ -497,6 +535,10 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 void myControlChange(byte channel, byte control, byte value) {
   usbMIDI.sendControlChange(control, value, channel);
   MIDI.sendControlChange(control, value, channel);
+  midi01.sendControlChange(control, value, channel);
+  midi02.sendControlChange(control, value, channel);
+  midi03.sendControlChange(control, value, channel);
+  midi04.sendControlChange(control, value, channel);
   
   Serial.print("Control Change, ch=");
   Serial.print(channel, DEC);
