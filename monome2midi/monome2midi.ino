@@ -90,6 +90,7 @@ const uint8_t gridX    = 16;   // Will be either 8 or 16
 const uint8_t gridY    = 8;                 // standard for 128
 /* --- */
 
+
 static const uint8_t PROGMEM
 xy2i128[8][16] = {
     {  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15 },
@@ -458,6 +459,7 @@ void processSerial(USBSerial &thisSerial) {
 void deviceInfo(){
   int serialnum;
   char maker[6];
+  int devicetype = 0; // 1=40h, 2=series, 3=mext
 
   for (uint8_t i = 0; i < CNT_DEVICES; i++) {
     if (*drivers[i] != driver_active[i]) {
@@ -483,14 +485,25 @@ void deviceInfo(){
           //"m128%*1[-_]%d" = series, "mk%d" = kit, "m40h%d" = 40h, "m%d" = mext
           if (sscanf(pss, "m40h%d", &serialnum)){  
             Serial.println("  40h device");
+            devicetype = 1;
+          } else if (sscanf(pss, "m256%*1[-_]%d", &serialnum)){ 
+            Serial.println("  monome series 256 device");
+            devicetype = 2;
           } else if (sscanf(pss, "m128%*1[-_]%d", &serialnum)){ 
             Serial.println("  monome series 128 device");
+            devicetype = 2;
+          } else if (sscanf(pss, "m64%*1[-_]%d", &serialnum)){ 
+            Serial.println("  monome series 64 device");
+            devicetype = 2;
           } else if (sscanf(pss, "mk%d", &serialnum)){ 
             Serial.println("   monome kit device");
+            devicetype = 2;
           } else if (sscanf(pss, "m%d", &serialnum)){ 
             Serial.println("  mext device");
+            devicetype = 3;
           }
         }
+
  
         // If this is a new Serial device.
         if (drivers[i] == &userial1) {
