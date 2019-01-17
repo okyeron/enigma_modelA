@@ -236,11 +236,11 @@ void loop() {
 
   // blink the LED when any activity has happened
   if (activity) {
-    digitalWriteFast(13, HIGH); // LED on
+    digitalWriteFast(LED, HIGH); // LED on
     ledOnMillis = 0;
   }
   if (ledOnMillis > 15) {
-    digitalWriteFast(13, LOW);  // LED off
+    digitalWriteFast(LED, LOW);  // LED off
   }
 
 }
