@@ -1,4 +1,3 @@
-
 /* Enigma
  *  
 
@@ -11,13 +10,28 @@
 #include <MIDI.h>
 #include <Bounce.h>
 
+// OSC ??
+#include <OSCBoards.h>
+#include <OSCBundle.h>
+#include <OSCData.h>
+#include <OSCMatch.h>
+#include <OSCMessage.h>
+#include <OSCTiming.h>
+#include <SLIPEncodedSerial.h>
+#include <SLIPEncodedUSBSerial.h>
+
 #define USBBAUD 115200
 uint32_t baud = USBBAUD;
 uint32_t format = USBHOST_SERIAL_8N1;
 
+// USER DEFINES
+
 #define BUTTON1 7
 #define BUTTON2 8
-#define LED 13
+#define LED 13  // teensy built-in LED
+#define LED1 23 // enigma LED 1
+#define LED2 22 // enigma LED 2
+
 
 USBHost myusb; // usb host mode
 USBHub hub1(myusb);
@@ -35,6 +49,7 @@ KeyboardController keyboard1(myusb);
 MouseController    mouse1(myusb);
 JoystickController joystick1(myusb);
 RawHIDController rawhid1(myusb);
+
 
 const byte numberButtons = 2;
 long buttonval[numberButtons] {};
@@ -108,9 +123,16 @@ uint8_t i2xy(uint8_t i) {
 void setup() {
   MIDI.begin(MIDI_CHANNEL_OMNI);
   Serial.begin(115200);
+  
+  // LED SETUP
   pinMode(LED, OUTPUT); // LED pin
   digitalWrite(LED, LOW);
+  pinMode(LED1, OUTPUT); // LED1 pin
+  digitalWrite(LED1, LOW);
+  pinMode(LED2, OUTPUT); // LED2 pin
+  digitalWrite(LED2, LOW);
 
+  // BUTTON SETUP
   pinMode(BUTTON1, INPUT_PULLUP); // BUTTON 1
   pinMode(BUTTON2, INPUT_PULLUP); // BUTTON 2
 
@@ -135,10 +157,12 @@ void setup() {
   midi04.setHandleNoteOff(myNoteOff);
   midi04.setHandleControlChange(myControlChange);
 
+  // HARDWARE MIDI
   MIDI.setHandleNoteOn(myNoteOn);
   MIDI.setHandleNoteOff(myNoteOff);
   MIDI.setHandleControlChange(myControlChange);
 
+  // USB MIDI
   usbMIDI.setHandleNoteOn(myNoteOn);
   usbMIDI.setHandleNoteOff(myNoteOff);
   usbMIDI.setHandleControlChange(myControlChange);
