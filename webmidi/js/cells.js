@@ -1,7 +1,19 @@
+// https://www.keithmcmillen.com/blog/making-music-in-the-browser-web-midi-api/
+// https://webaudio.github.io/web-midi-api/#handling-midi-input
+
 var theUniverse = null;
 
 var numRows = 8,
 	numCols = 16;
+var data, cmd, channel, type, note, velocity;
+
+var selectMIDIIn = null;
+var selectMIDIOut = null;
+var midiAccess = null; // global MIDIAccess object
+var midiIn = null;
+var midiOut = null;
+var enigmamidi = false;
+
 
 window.addEventListener('keydown', function() { 
 } );
@@ -48,12 +60,6 @@ window.addEventListener("DOMContentLoaded", function(event) {
 
 });
 
-var selectMIDIIn = null;
-var selectMIDIOut = null;
-var midiAccess = null; // global MIDIAccess object
-var midiIn = null;
-var midiOut = null;
-var enigmamidi = false;
 
 
 function changeMIDIIn( ev ) {
@@ -136,38 +142,54 @@ function onMIDISuccess(midiAccess) {
 }
 
 function midiProcess(ev) {
-	//console.log(ev);
+    data = ev.data,
+    cmd = data[0] >> 4,
+    channel = data[0] & 0xf,
+    type = data[0] & 0xf0, // channel agnostic message type. Thanks, Phil Burk.
+    note = data[1],
+    velocity = data[2];
+    // with pressure and tilt off
+    // note off: 128, cmd: 8 
+    // note on: 144, cmd: 9
+    // pressure / tilt on
+    // pressure: 176, cmd 11: 
+    // bend: 224, cmd: 14
 
-	var cmd = ev.data[0] >> 4;
-	var channel = ev.data[0] & 0xf;
-	var noteNumber = ev.data[1];
-	var velocity = ev.data[2];
+    switch (type) {
+		case 144: // noteOn message 
+        	if (velocity != 0){
+        		noteOn(note, velocity);
+        	}else{
+        		noteOff(note, velocity); 
+        	}
+        	console.log('noteOn: '+ note);
+            break;
+		case 128: // noteOff message 
+            noteOff(note, velocity);
+            console.log('noteOff: '+ note);
+            break;
+		case 176: // CC message 
+			//controller( note, velocity/127.0)
+            console.log('cc: '+ note);
+            break;
+		case 224: // pitchbend message 
+			//pitchWheel( ((velocity * 128.0 + note)-8192)/8192.0 );
+            console.log('pitchbend: '+ note);
+            break;
+        case 240: // sysex
+        	break;
+        	
+  }
 
-	if(cmd>14){ //handle sysex
+	
+	if(cmd>14){ //handle sysex - type 240
 
 		if(ev.data[5]===0 && ev.data[6]===1 && ev.data[7]===97){
 			var id = ev.data[10];
 			//product = products[id]; //turn product ID into a name
 			clog('product: (id '+id+')');
 		}
-    
-	} else {
 
-	if ( cmd==8 || ((cmd==9)&&(velocity==0)) ) { // with MIDI, note on with velocity zero is the same as note off
-	// note off
-		noteOff( noteNumber );
-		console.log('noteOff: '+ noteNumber);
-	} else if (cmd == 9) {
-	// note on
-		noteOn( noteNumber, velocity);
-		console.log('noteOn: '+ noteNumber);
-	} else if (cmd == 11) {
-		//controller( noteNumber, velocity/127.0);
-		console.log('controller: '+ noteNumber);
-	} else if (cmd == 14) {
-		// pitch wheel
-		//pitchWheel( ((velocity * 128.0 + noteNumber)-8192)/8192.0 );
-	}
 	}
 }
 
