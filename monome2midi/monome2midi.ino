@@ -5,10 +5,10 @@
  */
 
 
-
 #include <USBHost_t36.h>
 #include <MIDI.h>
 #include <Bounce.h>
+#include <EEPROM.h>
 
 // OSC ??
 #include <OSCBoards.h>
@@ -31,6 +31,10 @@ uint32_t format = USBHOST_SERIAL_8N1;
 #define LED 13  // teensy built-in LED
 #define LED1 23 // enigma LED 1
 #define LED2 22 // enigma LED 2
+
+// SYSEX RELATED
+int toggled[3] = {false,false,false}; // toggle indicates when toggle behavior in effect
+int mem[14]={1,4,7,64,0,65,0,66,0}; // an array of sysEx bytes, + defaults until EEPROM is loaded
 
 
 USBHost myusb; // usb host mode
@@ -137,6 +141,15 @@ void setup() {
   pinMode(BUTTON1, INPUT_PULLUP); // BUTTON 1
   pinMode(BUTTON2, INPUT_PULLUP); // BUTTON 2
 
+  // EEPROM - read EEPROM for sysEx data
+  if (EEPROM.read(0)>0 && EEPROM.read(0)<17){ // EEPROM @ 0 is non-zer0 or not a viable MIDI channel
+    for (int i = 0; i <= 8; i++) { // read EEPROM for sysEx data
+      mem[i] = EEPROM.read(i);
+      delay(5); // give time for EEPROM read??
+    }
+    int chnl = mem[0];
+  }
+  
   // Wait 1.5 seconds before turning on USB Host.  If connected USB devices
   // use too much power, Teensy at least completes USB enumeration, which
   // makes isolating the power issue easier.
@@ -216,11 +229,16 @@ void loop() {
   while (midi04.read()) {
     activity = true;
   }
-  // REad USB MIDI
+  
+  // Read USB MIDI
   while (usbMIDI.read()) {
      // controllers must call .read() to keep the queue clear even if they are not responding to MIDI
+	if(usbMIDI.getType() == usbMIDI.SystemExclusive) { //if MIDI is sysEx
+		doSysEx(); // look for CC change msg
+	}
     activity = true;
   }
+
 
   // Print out information about different devices.
   deviceInfo();
@@ -583,4 +601,32 @@ void myControlChange(byte channel, byte control, byte value) {
   Serial.print(control, DEC);
   Serial.print(", value=");
   Serial.println(value, DEC);
+}
+
+//************SYSEX SECTION************** EXAMPLE CODE
+/* 
+sends a small (16 byte) sysex message to configure the box 
+-- only nine bytes are program data, the rest is to make sure it's the intended message. 
+(I used the private-use (non-commercial) sysex ID '7D' with an added four bytes as a 'key'.)
+The code also sends back three bytes as an acknowledge message.
+*/
+void doSysEx(){
+	byte *sysExBytes = usbMIDI.getSysExArray();
+	if (sysExBytes[0] == 0xf0 
+	&& sysExBytes[15] == 0xf7 
+	&& sysExBytes[1] == 0x7D // 7D is private use (non-commercial)
+	&& sysExBytes[2] == 0x4C // 4-byte 'key' - not really needed if via USB but why not!
+	&& sysExBytes[3] == 0x65
+	&& sysExBytes[4] == 0x69
+	&& sysExBytes[5] == 0x66){ // read and compare static bytes to ensure valid msg
+		for (int i = 0; i < 10; i++) {
+		EEPROM.write(i, sysExBytes[i+6]);
+		mem[i] = sysExBytes[i+6];
+	}  
+	byte data[] = { 0xF0, 0x7D, 0xF7 }; // ACK msg - should be safe for any device even if listening for 7D
+	usbMIDI.sendSysEx(3, data);        // SEND
+	for (int i = 0; i < 3; i++) {
+		toggled[i] = false; // for consistant behaviour, start in OFF position
+	}
+	}
 }
