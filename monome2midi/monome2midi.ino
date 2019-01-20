@@ -157,16 +157,21 @@ void setup() {
   myusb.begin();
   Serial.println("\n\nUSB Host - Serial");
 
+// CHECK TO SEE IF DRIVER IS ACTIVE?
+
   // USB connected midi device i/o
   midi01.setHandleNoteOn(myNoteOn);
   midi01.setHandleNoteOff(myNoteOff);
   midi01.setHandleControlChange(myControlChange);
+
   midi02.setHandleNoteOn(myNoteOn);
   midi02.setHandleNoteOff(myNoteOff);
   midi02.setHandleControlChange(myControlChange);
+
   midi03.setHandleNoteOn(myNoteOn);
   midi03.setHandleNoteOff(myNoteOff);
   midi03.setHandleControlChange(myControlChange);
+
   midi04.setHandleNoteOn(myNoteOn);
   midi04.setHandleNoteOff(myNoteOff);
   midi04.setHandleControlChange(myControlChange);
@@ -590,11 +595,13 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 void myControlChange(byte channel, byte control, byte value) {
   usbMIDI.sendControlChange(control, value, channel);
   MIDI.sendControlChange(control, value, channel);
+
+/*
   midi01.sendControlChange(control, value, channel);
   midi02.sendControlChange(control, value, channel);
   midi03.sendControlChange(control, value, channel);
   midi04.sendControlChange(control, value, channel);
-  
+*/
   Serial.print("Control Change, ch=");
   Serial.print(channel, DEC);
   Serial.print(", control=");

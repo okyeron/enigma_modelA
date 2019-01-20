@@ -169,7 +169,7 @@ function midiProcess(ev) {
             console.log('noteOff: '+ note);
             break;
 		case 176: // CC message 
-			//controller( note, velocity/127.0)
+			controller( note, velocity)
             console.log('cc: '+ note);
             break;
 		case 224: // pitchbend message 
@@ -212,7 +212,7 @@ function noteOff( note ) {
 	$(note).className = "cell";
 	
 }
-// 'value' is normalized to 0..1.
+
 function controller( number, value ) {
 	//console.log('cc '+number+' '+value);
 	$('ccnum').innerHTML = number;
