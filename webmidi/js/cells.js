@@ -56,7 +56,8 @@ window.addEventListener("DOMContentLoaded", function(event) {
 	  document.querySelector("#midi").style.display = "none";
 	  document.querySelector("#nomidi").style.display = "block";
   }
-	navigator.requestMIDIAccess({sysex: true}).then( onMIDIInit, onMIDIFail );
+//	navigator.requestMIDIAccess({sysex: true}).then( onMIDIInit, onMIDIFail );
+	navigator.requestMIDIAccess({}).then( onMIDIInit, onMIDIFail );
 
 });
 

@@ -157,7 +157,8 @@ void setup() {
   myusb.begin();
   Serial.println("\n\nUSB Host - Serial");
 
-// CHECK TO SEE IF DRIVER IS ACTIVE?
+  //get device info
+  deviceInfo();
 
   // USB connected midi device i/o
   midi01.setHandleNoteOn(myNoteOn);
@@ -175,7 +176,7 @@ void setup() {
   midi04.setHandleNoteOn(myNoteOn);
   midi04.setHandleNoteOff(myNoteOff);
   midi04.setHandleControlChange(myControlChange);
-
+	
   // HARDWARE MIDI
   MIDI.setHandleNoteOn(myNoteOn);
   MIDI.setHandleNoteOff(myNoteOff);
@@ -185,12 +186,13 @@ void setup() {
   usbMIDI.setHandleNoteOn(myNoteOn);
   usbMIDI.setHandleNoteOff(myNoteOff);
   usbMIDI.setHandleControlChange(myControlChange);
+  usbMIDI.setHandleSystemExclusive(mySystemExclusive);
+  
   //writeInt(0x12);
   
   delay(2000);
   
-  //get device info
-  deviceInfo();
+
 }
 
 // MAIN LOOP
@@ -221,32 +223,35 @@ void loop() {
   } // END BUTTONS LOOP
 
 
+  // Print out information about different devices.
+  deviceInfo();
+
+
   // Read MIDI from USB HUB connected MIDI Devices
-  while (midi01.read()) {
+  while (midi01.read() && driver_active[4]) {
     activity = true;
   }
-  while (midi02.read()) {
+  while (midi02.read() && driver_active[5]) {
     activity = true;
   }
-  while (midi03.read()) {
+  while (midi03.read() && driver_active[6]) {
     activity = true;
   }
-  while (midi04.read()) {
+  while (midi04.read() && driver_active[7]) {
+    activity = true;
+  }
+
+  while (MIDI.read()) {
     activity = true;
   }
   
   // Read USB MIDI
   while (usbMIDI.read()) {
      // controllers must call .read() to keep the queue clear even if they are not responding to MIDI
-	if(usbMIDI.getType() == usbMIDI.SystemExclusive) { //if MIDI is sysEx
-		doSysEx(); // look for CC change msg
-	}
     activity = true;
   }
 
 
-  // Print out information about different devices.
-  deviceInfo();
 
   // process incoming serial from Monomes
   if (userial1.available() > 0) {
@@ -526,7 +531,7 @@ void deviceInfo(){
             devicetype = 3;
           }
         }
-
+		
  
         // If this is a new Serial device.
         if (drivers[i] == &userial1) {
@@ -536,6 +541,7 @@ void deviceInfo(){
       }
     }
   }
+
 }
 
 // MIDI NOTE/CC HANDLERS
@@ -610,13 +616,29 @@ void myControlChange(byte channel, byte control, byte value) {
   Serial.println(value, DEC);
 }
 
-//************SYSEX SECTION************** EXAMPLE CODE
-/* 
+//************ SYSEX CALLBACKS **************
+void mySystemExclusiveChunk(const byte *data, uint16_t length, bool last){
+	Serial.print("SysEx Message: ");
+	printBytes(data, length);
+	if (last) {
+		Serial.println(" (end)");
+	} else {
+		Serial.println(" (to be continued)");
+	}
+}
+void mySystemExclusive(byte *data, unsigned int length){
+	Serial.print("SysEx Message: ");
+	printBytes(data, length);
+	Serial.println();
+}
+
+/* OLD WAY
 sends a small (16 byte) sysex message to configure the box 
 -- only nine bytes are program data, the rest is to make sure it's the intended message. 
 (I used the private-use (non-commercial) sysex ID '7D' with an added four bytes as a 'key'.)
 The code also sends back three bytes as an acknowledge message.
 */
+
 void doSysEx(){
 	byte *sysExBytes = usbMIDI.getSysExArray();
 	if (sysExBytes[0] == 0xf0 
