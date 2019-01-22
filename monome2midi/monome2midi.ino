@@ -619,7 +619,7 @@ void myControlChange(byte channel, byte control, byte value) {
 //************ SYSEX CALLBACKS **************
 void mySystemExclusiveChunk(const byte *data, uint16_t length, bool last){
 	Serial.print("SysEx Message: ");
-	printBytes(data, length);
+	//printBytes(data, length);
 	if (last) {
 		Serial.println(" (end)");
 	} else {
@@ -628,7 +628,7 @@ void mySystemExclusiveChunk(const byte *data, uint16_t length, bool last){
 }
 void mySystemExclusive(byte *data, unsigned int length){
 	Serial.print("SysEx Message: ");
-	printBytes(data, length);
+	//printBytes(data, length);
 	Serial.println();
 }
 
