@@ -4,7 +4,6 @@
  *
  */
 
-
 #include <Bounce.h>
 #include <EEPROM.h>
 #include <MIDI.h>
@@ -21,24 +20,19 @@
 #include <SLIPEncodedUSBSerial.h>
 
 #define USBBAUD 115200
-uint32_t baud = USBBAUD;
-uint32_t format = USBHOST_SERIAL_8N1;
+#define USBFORMAT USBHOST_SERIAL_8N1
 
 // USER DEFINES
 
+#define BUTTONCOUNT 2
+#define BUTTONDEBOUNCE 10 // ms
 #define BUTTON1 7
 #define BUTTON2 8
 #define LED 13   // teensy built-in LED
 #define LED1 23  // enigma LED 1
 #define LED2 22  // enigma LED 2
-
-// SYSEX RELATED
-int toggled[3] = { false, false,
-                   false };  // toggle indicates when toggle behavior in effect
-int mem[14] = {
-    1, 4, 7, 64, 0, 65, 0, 66, 0
-};  // an array of sysEx bytes, + defaults until EEPROM is loaded
-
+#define USBDRIVERCOUNT 10
+#define HIDDEVICECOUNT 3
 
 USBHost myusb;  // usb host mode
 USBHub hub1(myusb);
@@ -50,42 +44,42 @@ MIDIDevice midi02(myusb);
 MIDIDevice midi03(myusb);
 MIDIDevice midi04(myusb);
 
-// not really using these, but there for future use - See USBHost_t36 "mouse"
-// example for more
+// for future use - see USBHost_t36 "mouse" example for more
 USBHIDParser hid1(myusb);
 KeyboardController keyboard1(myusb);
 MouseController mouse1(myusb);
 JoystickController joystick1(myusb);
 RawHIDController rawhid1(myusb);
 
+// SYSEX RELATED
+// toggle indicates when toggle behavior in effect
+int sysExToggled[3] = { false, false, false };
 
-const byte numberButtons = 2;
-long buttonval[numberButtons]{};
-Bounce pushbutton1 = Bounce(BUTTON1, 10);  // 10 ms debounce
-Bounce pushbutton2 = Bounce(BUTTON2, 10);  // 10 ms debounce
-Bounce *buttons[numberButtons]{ &pushbutton1, &pushbutton2 };
+// an array of sysEx bytes, + defaults until EEPROM is loaded
+int sysExMem[14] = { 1, 4, 7, 64, 0, 65, 0, 66, 0 };
+
+long buttonval[BUTTONCOUNT]{};
+Bounce pushbutton1 = Bounce(BUTTON1, BUTTONDEBOUNCE);
+Bounce pushbutton2 = Bounce(BUTTON2, BUTTONDEBOUNCE);
+Bounce *buttons[BUTTONCOUNT]{ &pushbutton1, &pushbutton2 };
 
 // Create the Hardware MIDI-out port
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-// Standard USBDriver devices
-USBDriver *drivers[] = { &hub1,   &hub2,   &userial1, &userial2, &midi01,
+USBDriver *drivers[USBDRIVERCOUNT] = { &hub1,   &hub2,   &userial1, &userial2, &midi01,
                          &midi02, &midi03, &midi04,   &hid1,     &keyboard1 };
-#define CNT_DEVICES (sizeof(drivers) / sizeof(drivers[0]))
-const char *driver_names[CNT_DEVICES] = { "Hub1",     "Hub2",  "USERIAL1",
+const char *driver_names[USBDRIVERCOUNT] = { "Hub1",     "Hub2",  "USERIAL1",
                                           "USERIAL2", "MIDI1", "MIDI2",
                                           "MIDI3",    "MIDI4", "HID",
                                           "Keyboard" };
-bool driver_active[CNT_DEVICES] = { false, false, false, false, false,
-                                    false, false, false, false, false };
+bool driver_active[USBDRIVERCOUNT] = { false, false, false, false, false,
+                         false, false, false, false, false };
 
 // Lets also look at HID Input devices
-USBHIDInput *hiddrivers[] = { &mouse1, &joystick1, &rawhid1 };
-#define CNT_HIDDEVICES (sizeof(hiddrivers) / sizeof(hiddrivers[0]))
-const char *hid_driver_names[CNT_DEVICES] = { "Mouse1", "Joystick1",
+USBHIDInput *hiddrivers[HIDDEVICECOUNT] = { &mouse1, &joystick1, &rawhid1 };
+const char *hid_driver_names[HIDDEVICECOUNT] = { "Mouse1", "Joystick1",
                                               "RawHid1" };
-bool hid_driver_active[CNT_DEVICES] = { false, false, "false" };
-
+bool hid_driver_active[HIDDEVICECOUNT] = { false, false, "false" };
 
 // map encoder # to a CC
 int encoderCCs[]{ 16, 17, 18, 19, 20, 21, 22, 23 };
@@ -104,51 +98,6 @@ String serialNum = "m1000010";  // this # does not get used -  serial number
 const uint8_t gridX = 16;       // Will be either 8 or 16
 const uint8_t gridY = 8;        // standard for 128
 /* --- */
-
-
-static const uint8_t PROGMEM
-    xy2i128[8][16] =
-        { { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 },
-          { 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 },
-          { 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47 },
-          { 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63 },
-          { 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79 },
-          { 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95 },
-          { 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
-            110, 111 },
-          { 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124,
-            125, 126, 127 } },
-    i2xy128[128][2] = {
-        { 0, 0 },  { 1, 0 },  { 2, 0 },  { 3, 0 },  { 4, 0 },  { 5, 0 },
-        { 6, 0 },  { 7, 0 },  { 8, 0 },  { 9, 0 },  { 10, 0 }, { 11, 0 },
-        { 12, 0 }, { 13, 0 }, { 14, 0 }, { 15, 0 }, { 0, 1 },  { 1, 1 },
-        { 2, 1 },  { 3, 1 },  { 4, 1 },  { 5, 1 },  { 6, 1 },  { 7, 1 },
-        { 8, 1 },  { 9, 1 },  { 10, 1 }, { 11, 1 }, { 12, 1 }, { 13, 1 },
-        { 14, 1 }, { 15, 1 }, { 0, 2 },  { 1, 2 },  { 2, 2 },  { 3, 2 },
-        { 4, 2 },  { 5, 2 },  { 6, 2 },  { 7, 2 },  { 8, 2 },  { 9, 2 },
-        { 10, 2 }, { 11, 2 }, { 12, 2 }, { 13, 2 }, { 14, 2 }, { 15, 2 },
-        { 0, 3 },  { 1, 3 },  { 2, 3 },  { 3, 3 },  { 4, 3 },  { 5, 3 },
-        { 6, 3 },  { 7, 3 },  { 8, 3 },  { 9, 3 },  { 10, 3 }, { 11, 3 },
-        { 12, 3 }, { 13, 3 }, { 14, 3 }, { 15, 3 }, { 0, 4 },  { 1, 4 },
-        { 2, 4 },  { 3, 4 },  { 4, 4 },  { 5, 4 },  { 6, 4 },  { 7, 4 },
-        { 8, 4 },  { 9, 4 },  { 10, 4 }, { 11, 4 }, { 12, 4 }, { 13, 4 },
-        { 14, 4 }, { 15, 4 }, { 0, 5 },  { 1, 5 },  { 2, 5 },  { 3, 5 },
-        { 4, 5 },  { 5, 5 },  { 6, 5 },  { 7, 5 },  { 8, 5 },  { 9, 5 },
-        { 10, 5 }, { 11, 5 }, { 12, 5 }, { 13, 5 }, { 14, 5 }, { 15, 5 },
-        { 0, 6 },  { 1, 6 },  { 2, 6 },  { 3, 6 },  { 4, 6 },  { 5, 6 },
-        { 6, 6 },  { 7, 6 },  { 8, 6 },  { 9, 6 },  { 10, 6 }, { 11, 6 },
-        { 12, 6 }, { 13, 6 }, { 14, 6 }, { 15, 6 }, { 0, 7 },  { 1, 7 },
-        { 2, 7 },  { 3, 7 },  { 4, 7 },  { 5, 7 },  { 6, 7 },  { 7, 7 },
-        { 8, 7 },  { 9, 7 },  { 10, 7 }, { 11, 7 }, { 12, 7 }, { 13, 7 },
-        { 14, 7 }, { 15, 7 }
-    };
-
-uint8_t xy2i(uint8_t x, uint8_t y) {
-    return pgm_read_byte(&xy2i128[y][x]);
-}
-uint8_t i2xy(uint8_t i) {
-    return pgm_read_byte(&i2xy128[i][1]);
-}
 
 // SETUP
 
@@ -169,14 +118,13 @@ void setup() {
     pinMode(BUTTON2, INPUT_PULLUP);  // BUTTON 2
 
     // EEPROM - read EEPROM for sysEx data
-    if (EEPROM.read(0) > 0 &&
-        EEPROM.read(0) <
-            17) {  // EEPROM @ 0 is non-zer0 or not a viable MIDI channel
+    if (EEPROM.read(0) > 0 && EEPROM.read(0) < 17) {
+        // EEPROM @ 0 is non-zer0 or not a viable MIDI channel
         for (int i = 0; i <= 8; i++) {  // read EEPROM for sysEx data
-            mem[i] = EEPROM.read(i);
+            sysExMem[i] = EEPROM.read(i);
             delay(5);  // give time for EEPROM read??
         }
-        int chnl = mem[0];
+        // int chnl = sysExMem[0];
     }
 
     // Wait 1.5 seconds before turning on USB Host.  If connected USB devices
@@ -229,7 +177,7 @@ void loop() {
     myusb.Task();
 
     // START BUTTONS LOOP
-    for (byte z = 0; z < numberButtons; z++) {
+    for (byte z = 0; z < BUTTONCOUNT; z++) {
         buttons[z]->update();
         if (buttons[z]->risingEdge()) {  // release
             //  do release things - like turn off LED
@@ -303,21 +251,18 @@ uint8_t readInt(USBSerial &thisSerial) {
 }
 
 void writeInt(uint8_t value, USBSerial &thisSerial) {
-    thisSerial.write(
-        value);  // standard is to write out the 8 bit value on serial
+    // standard is to write out the 8 bit value on serial
+    thisSerial.write(value);
 }
-
 
 void processSerial(USBSerial &thisSerial) {
     uint8_t identifierSent;  // command byte sent from controller to matrix
-    uint8_t deviceAddress;   // device address sent from controller
-    uint8_t dummy, gridNum;  // for reading in data not used by the matrix
-    uint8_t intensity = 15;  // default full led intensity
+    uint8_t gridNum;  // for reading in data not used by the matrix
     uint8_t readX, readY;    // x and y values read from driver
-    uint8_t deviceX, deviceY, devSect,
-        devNum;  // x and y device size read from driver
-    uint8_t i, x, y, z, n;
+    uint8_t devSect, devNum;  // x and y device size read from driver
+    uint8_t i, n;
     int8_t d;
+    int8_t note;
 
     identifierSent = thisSerial.read();  // get command identifier: first byte
                                          // of packet is identifier in the form:
@@ -413,10 +358,10 @@ void processSerial(USBSerial &thisSerial) {
             writeInt(readY, thisSerial);
 
             // note off
-            myNoteOff(midiChannel, xy2i(readX, readY), 0);
+            note = readX + (readY << 4);
+            myNoteOff(midiChannel, note, 0);
             Serial.print("Send note-off: ");
-            Serial.print(xy2i(readX, readY));
-            Serial.println(" ");
+            Serial.println(note);
 
             break;
         case 0x21:
@@ -434,10 +379,10 @@ void processSerial(USBSerial &thisSerial) {
             writeInt(readY, thisSerial);
 
             // note on
-            myNoteOn(midiChannel, xy2i(readX, readY), 60);
+            note = readX + (readY << 4);
+            myNoteOn(midiChannel, note, 60);
             Serial.print("Send note-on : ");
-            Serial.print(xy2i(readX, readY));
-            Serial.println(" ");
+            Serial.println(note);
 
             break;
 
@@ -516,7 +461,7 @@ void deviceInfo() {
     char maker[6];
     int devicetype = 0;  // 1=40h, 2=series, 3=mext
 
-    for (uint8_t i = 0; i < CNT_DEVICES; i++) {
+    for (uint8_t i = 0; i < USBDRIVERCOUNT; i++) {
         if (*drivers[i] != driver_active[i]) {
             if (driver_active[i]) {
                 Serial.printf("*** %s Device - disconnected ***\n",
@@ -568,13 +513,13 @@ void deviceInfo() {
                         devicetype = 3;
                     }
                 }
-
+                Serial.println(devicetype);
 
                 // If this is a new Serial device.
                 if (drivers[i] == &userial1) {
                     // Lets try first outputting something to our USerial to see
                     // if it will go out...
-                    userial1.begin(baud, format);
+                    userial1.begin(USBBAUD, USBFORMAT);
                 }
             }
         }
@@ -584,7 +529,6 @@ void deviceInfo() {
 // MIDI NOTE/CC HANDLERS
 
 void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
-    uint8_t i, x, y, z;
     // When using MIDIx4 or MIDIx16, usbMIDI.getCable() can be used
     // to read which of the virtual MIDI cables received this message.
     usbMIDI.sendNoteOn(note, velocity, channel);
@@ -605,13 +549,12 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 
     // echo midi note-on back to grid
     writeInt(0x18, userial1);  // /prefix/led/level/set x y i
-    writeInt(pgm_read_byte(&i2xy128[note][0]), userial1);
-    writeInt(pgm_read_byte(&i2xy128[note][1]), userial1);
+    writeInt(note & 15, userial1);
+    writeInt(note >> 4, userial1);
     writeInt(velocity, userial1);
 }
 
 void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
-    uint8_t i, x, y, z;
     usbMIDI.sendNoteOff(note, 0, channel);
     MIDI.sendNoteOff(note, 0, channel);
 
@@ -630,8 +573,8 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
 
     // echo midi note-off back to grid
     writeInt(0x18, userial1);  // /prefix/led/set x y 0
-    writeInt(pgm_read_byte(&i2xy128[note][0]), userial1);
-    writeInt(pgm_read_byte(&i2xy128[note][1]), userial1);
+    writeInt(note & 15, userial1);
+    writeInt(note >> 4, userial1);
     writeInt(0, userial1);
 }
 
@@ -689,15 +632,14 @@ void doSysEx() {
             0x66) {  // read and compare static bytes to ensure valid msg
         for (int i = 0; i < 10; i++) {
             EEPROM.write(i, sysExBytes[i + 6]);
-            mem[i] = sysExBytes[i + 6];
+            sysExMem[i] = sysExBytes[i + 6];
         }
         byte data[] = {
             0xF0, 0x7D, 0xF7
         };  // ACK msg - should be safe for any device even if listening for 7D
         usbMIDI.sendSysEx(3, data);  // SEND
         for (int i = 0; i < 3; i++) {
-            toggled[i] =
-                false;  // for consistant behaviour, start in OFF position
+            sysExToggled[i] = false;  // for consistant behaviour, start in OFF position
         }
     }
 }
