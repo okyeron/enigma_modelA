@@ -81,6 +81,9 @@ const char *hid_driver_names[HIDDEVICECOUNT] = { "Mouse1", "Joystick1",
                                               "RawHid1" };
 bool hid_driver_active[HIDDEVICECOUNT] = { false, false, "false" };
 
+// LED array
+int leds[]{ 23, 22, 13 };  // 13 is teensy led
+
 // map encoder # to a CC
 int encoderCCs[]{ 16, 17, 18, 19, 20, 21, 22, 23 };
 
@@ -105,17 +108,18 @@ void setup() {
     MIDI.begin(MIDI_CHANNEL_OMNI);
     Serial.begin(115200);
 
+    // BUTTON SETUP
+    pinMode(BUTTON1, INPUT_PULLUP);  // BUTTON 1
+    pinMode(BUTTON2, INPUT_PULLUP);  // BUTTON 2
+
     // LED SETUP
     pinMode(LED, OUTPUT);  // LED pin
     digitalWrite(LED, LOW);
     pinMode(LED1, OUTPUT);  // LED1 pin
-    digitalWrite(LED1, LOW);
+    digitalWrite(LED1, HIGH);
     pinMode(LED2, OUTPUT);  // LED2 pin
-    digitalWrite(LED2, LOW);
+    digitalWrite(LED2, HIGH);
 
-    // BUTTON SETUP
-    pinMode(BUTTON1, INPUT_PULLUP);  // BUTTON 1
-    pinMode(BUTTON2, INPUT_PULLUP);  // BUTTON 2
 
     // EEPROM - read EEPROM for sysEx data
     if (EEPROM.read(0) > 0 && EEPROM.read(0) < 17) {
@@ -131,6 +135,9 @@ void setup() {
     // use too much power, Teensy at least completes USB enumeration, which
     // makes isolating the power issue easier.
     delay(1500);
+    digitalWrite(LED1, LOW);
+    digitalWrite(LED2, LOW);
+    
     myusb.begin();
     Serial.println("\n\nUSB Host - Serial");
 
@@ -181,15 +188,15 @@ void loop() {
         buttons[z]->update();
         if (buttons[z]->risingEdge()) {  // release
             //  do release things - like turn off LED
-            digitalWrite(LED, HIGH);  // LED off
+            digitalWrite(leds[z], LOW);  // LED off
             buttonval[z] = 0;
             Serial.print("button:");
             Serial.print(z + 1);
             Serial.println(" released");
         }
         if (buttons[z]->fallingEdge()) {  // press
-            // do press things - like turn onf LED
-            digitalWrite(LED, LOW);  // LED on
+            // do press things - like turn on LED
+            digitalWrite(leds[z], HIGH);  // LED on
             buttonval[z] = 1;
             Serial.print("button:");
             Serial.print(z + 1);
@@ -234,11 +241,11 @@ void loop() {
 
     // blink the LED when any activity has happened
     if (activity) {
-        digitalWriteFast(LED, HIGH);  // LED on
+        digitalWriteFast(leds[0], HIGH);  // LED on
         ledOnMillis = 0;
     }
     if (ledOnMillis > 15) {
-        digitalWriteFast(LED, LOW);  // LED off
+        digitalWriteFast(leds[0], LOW);  // LED off
     }
 }
 
@@ -513,7 +520,7 @@ void deviceInfo() {
                         devicetype = 3;
                     }
                 }
-                Serial.println(devicetype);
+                //Serial.println(devicetype);
 
                 // If this is a new Serial device.
                 if (drivers[i] == &userial1) {
