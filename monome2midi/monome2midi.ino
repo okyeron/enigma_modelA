@@ -8,6 +8,7 @@
 #include <EEPROM.h>
 #include <MIDI.h>
 #include <USBHost_t36.h>
+#include "MonomeSerial.cpp"
 
 // OSC ??
 #include <OSCBoards.h>
@@ -37,8 +38,8 @@
 USBHost myusb;  // usb host mode
 USBHub hub1(myusb);
 USBHub hub2(myusb);
-USBSerial userial1(myusb);
-USBSerial userial2(myusb);
+MonomeSerial userial1(myusb);
+MonomeSerial userial2(myusb);
 MIDIDevice midi01(myusb);
 MIDIDevice midi02(myusb);
 MIDIDevice midi03(myusb);
@@ -228,13 +229,13 @@ void loop() {
     // process incoming serial from Monomes
     if (userial1.available() > 0) {
         do {
-            processSerial(userial1);
+            userial1.processSerial();
             activity = true;
         } while (userial1.available() > 16);
     }
     if (userial2.available() > 0) {
         do {
-            processSerial(userial2);
+            userial2.processSerial();
             activity = true;
         } while (userial2.available() > 16);
     }
@@ -251,215 +252,6 @@ void loop() {
 
 
 // MISC FUNCTIONS
-
-uint8_t readInt(USBSerial &thisSerial) {
-    uint8_t val = thisSerial.read();
-    return val;
-}
-
-void writeInt(uint8_t value, USBSerial &thisSerial) {
-    // standard is to write out the 8 bit value on serial
-    thisSerial.write(value);
-}
-
-void processSerial(USBSerial &thisSerial) {
-    uint8_t identifierSent;  // command byte sent from controller to matrix
-    uint8_t gridNum;  // for reading in data not used by the matrix
-    uint8_t readX, readY;    // x and y values read from driver
-    uint8_t devSect, devNum;  // x and y device size read from driver
-    uint8_t i, n;
-    int8_t d;
-    int8_t note;
-
-    identifierSent = thisSerial.read();  // get command identifier: first byte
-                                         // of packet is identifier in the form:
-                                         // [(a << 4) + b]
-    // a = section (ie. system, key-grid, digital, encoder, led grid, tilt)
-    // b = command (ie. query, enable, led, key, frame)
-    switch (identifierSent) {
-        case 0x00:  // device information
-            // Serial.println("0x00");
-            devSect =
-                readInt(thisSerial);       // system/query response 0x00 -> 0x00
-            devNum = readInt(thisSerial);  // grids
-            Serial.print("section: ");
-            Serial.print(devSect);
-            Serial.print(", number: ");
-            Serial.print(devNum);
-            Serial.println(" ");
-            break;
-
-        case 0x01:  // system / ID
-            // Serial.println("0x01");
-            for (i = 0; i < 32; i++) {  // has to be 32
-                Serial.print(readInt(thisSerial));
-            }
-            Serial.println(" ");
-            break;
-
-        case 0x02:  // system / report grid offset - 4 bytes
-            // Serial.println("0x02");
-            gridNum = readInt(thisSerial);  // n = grid number
-            readX = readInt(
-                thisSerial);  // an offset of 8 is valid only for 16 x 8 monome
-            readY = readInt(
-                thisSerial);  // an offset is invalid for y as it's only 8
-            Serial.print("n: ");
-            Serial.print(gridNum);
-            Serial.print(", x: ");
-            Serial.print(readX);
-            Serial.print(" , y: ");
-            Serial.print(readY);
-            Serial.println(" ");
-            break;
-
-        case 0x03:  // system / report grid size
-            // Serial.println("0x03");
-            readX = readInt(
-                thisSerial);  // an offset of 8 is valid only for 16 x 8 monome
-            readY = readInt(
-                thisSerial);  // an offset is invalid for y as it's only 8
-            Serial.print("x: ");
-            Serial.print(readX);
-            Serial.print(" y: ");
-            Serial.print(readY);
-            Serial.println(" ");
-            break;
-
-        case 0x04:  // system / report ADDR
-            // Serial.println("0x04");
-            readX = readInt(thisSerial);  // a ADDR
-            readY = readInt(thisSerial);  // b type
-            break;
-
-        case 0x0F:  // system / report firmware version
-            // Serial.println("0x0F");
-            for (i = 0; i < 8; i++) {  // 8 character string
-                Serial.print(readInt(thisSerial));
-            }
-            break;
-
-        case 0x20:
-            /*
-             * 0x20 key-grid / key up
-             bytes: 3
-             structure: [0x20, x, y]
-             description: key up at (x,y)
-
-             0x21 key-grid / key down
-             bytes: 3
-             structure: [0x21, x, y]
-             description: key down at (x,y)
-             */
-            readX = readInt(thisSerial);
-            readY = readInt(thisSerial);
-            Serial.print("grid key: ");
-            Serial.print(readX);
-            Serial.print(" ");
-            Serial.print(readY);
-            Serial.print(" up - ");
-
-            // turn off led
-            writeInt(0x10, thisSerial);  // /prefix/led/set x y 0
-            writeInt(readX, thisSerial);
-            writeInt(readY, thisSerial);
-
-            // note off
-            note = readX + (readY << 4);
-            myNoteOff(midiChannel, note, 0);
-            Serial.print("Send note-off: ");
-            Serial.println(note);
-
-            break;
-        case 0x21:
-            readX = readInt(thisSerial);
-            readY = readInt(thisSerial);
-            Serial.print("grid key: ");
-            Serial.print(readX);
-            Serial.print(" ");
-            Serial.print(readY);
-            Serial.print(" dn - ");
-
-            // turn on led
-            writeInt(0x11, thisSerial);  // /prefix/led/set x y 1
-            writeInt(readX, thisSerial);
-            writeInt(readY, thisSerial);
-
-            // note on
-            note = readX + (readY << 4);
-            myNoteOn(midiChannel, note, 60);
-            Serial.print("Send note-on : ");
-            Serial.println(note);
-
-            break;
-
-        case 0x40:  //   d-line-in / change to low
-            break;
-        case 0x41:  //   d-line-in / change to high
-            break;
-
-        // 0x5x are encoder
-        case 0x50:  // /prefix/enc/delta n d - [0x50, n, d]
-            // Serial.println("0x50");
-            n = readInt(thisSerial);
-            d = readInt(thisSerial);
-            Serial.print("encoder: ");
-            Serial.print(n);
-            Serial.print(" : ");
-            Serial.print(d);
-            Serial.println();
-
-            myControlChange(midiChannel, encoderCCs[n], d);
-
-            // bytes: 3
-            // structure: [0x50, n, d]
-            // n = encoder number
-            //  0-255
-            // d = delta
-            //  (-128)-127 (two's comp 8 bit)
-            // description: encoder position change
-            break;
-
-        case 0x51:  // /prefix/enc/key n (key up)
-            // Serial.println("0x51");
-            n = readInt(thisSerial);
-            Serial.print("key: ");
-            Serial.print(n);
-            Serial.println(" up");
-
-            // bytes: 2
-            // structure: [0x51, n]
-            // n = encoder number
-            //  0-255
-            // description: encoder switch up
-            break;
-
-        case 0x52:  // /prefix/enc/key n (key down)
-            // Serial.println("0x52");
-            n = readInt(thisSerial);
-            Serial.print("key: ");
-            Serial.print(n);
-            Serial.println(" down");
-
-            // bytes: 2
-            // structure: [0x52, n]
-            // n = encoder number
-            //  0-255
-            // description: encoder switch down
-            break;
-
-        case 0x60:  //   analog / active response - 33 bytes [0x01, d0..31]
-            break;
-        case 0x61:  //   analog in - 4 bytes [0x61, n, dh, dl]
-            break;
-        case 0x80:  //   tilt / active response - 9 bytes [0x01, d]
-            break;
-        case 0x81:  //   tilt - 8 bytes [0x80, n, xh, xl, yh, yl, zh, zl]
-            break;
-
-        default: break;
-    }
-}
 
 
 // FUNCTION TO PRINT DEVICE INFO
@@ -555,10 +347,7 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     midi04.sendNoteOn(note, velocity, channel);
 
     // echo midi note-on back to grid
-    writeInt(0x18, userial1);  // /prefix/led/level/set x y i
-    writeInt(note & 15, userial1);
-    writeInt(note >> 4, userial1);
-    writeInt(velocity, userial1);
+    userial1.setLed(note & 15, note >> 4, velocity);
 }
 
 void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -579,10 +368,7 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     midi04.sendNoteOff(note, velocity, channel);
 
     // echo midi note-off back to grid
-    writeInt(0x18, userial1);  // /prefix/led/set x y 0
-    writeInt(note & 15, userial1);
-    writeInt(note >> 4, userial1);
-    writeInt(0, userial1);
+    userial1.clearLed(note & 15, note >> 4);
 }
 
 void myControlChange(byte channel, byte control, byte value) {
