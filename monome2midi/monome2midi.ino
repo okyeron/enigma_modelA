@@ -8,7 +8,7 @@
 #include <EEPROM.h>
 #include <MIDI.h>
 #include <USBHost_t36.h>
-#include "MonomeSerial.cpp"
+#include <i2c_t3.h>
 
 // OSC ??
 #include <OSCBoards.h>
@@ -19,6 +19,8 @@
 #include <OSCTiming.h>
 #include <SLIPEncodedSerial.h>
 #include <SLIPEncodedUSBSerial.h>
+
+#include "MonomeSerial.cpp"
 
 #define USBBAUD 115200
 #define USBFORMAT USBHOST_SERIAL_8N1
@@ -34,6 +36,17 @@
 #define LED2 22  // enigma LED 2
 #define USBDRIVERCOUNT 10
 #define HIDDEVICECOUNT 3
+#define I2CADDR 0x66
+
+// i2c Function prototypes
+void receivei2cEvent(size_t count);
+void requesti2cEvent(void);
+
+// i2c Memory
+#define MEM_LEN 256
+char i2c_databuf[MEM_LEN];
+volatile uint8_t i2c_received;
+
 
 USBHost myusb;  // usb host mode
 USBHub hub1(myusb);
@@ -106,10 +119,7 @@ const uint8_t gridY = 8;        // standard for 128
 // SETUP
 
 void setup() {
-    MIDI.begin(MIDI_CHANNEL_OMNI);
-    Serial.begin(115200);
-
-    // BUTTON SETUP
+     // BUTTON SETUP
     pinMode(BUTTON1, INPUT_PULLUP);  // BUTTON 1
     pinMode(BUTTON2, INPUT_PULLUP);  // BUTTON 2
 
@@ -120,6 +130,23 @@ void setup() {
     digitalWrite(LED1, HIGH);
     pinMode(LED2, OUTPUT);  // LED2 pin
     digitalWrite(LED2, HIGH);
+
+
+    MIDI.begin(MIDI_CHANNEL_OMNI);
+
+    // Setup for Follower mode, address 0x66, pins 18/19, external pullups, 400kHz
+    Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
+    Wire.setDefaultTimeout(10000); // 10ms
+
+    // Data init
+    i2c_received = 0;
+    memset(i2c_databuf, 0, sizeof(i2c_databuf));
+
+    // register events
+    Wire.onReceive(receivei2cEvent);
+    Wire.onRequest(requesti2cEvent);
+
+    Serial.begin(115200);
 
 
     // EEPROM - read EEPROM for sysEx data
@@ -208,6 +235,15 @@ void loop() {
         }
     }  // END BUTTONS LOOP
 
+    // i2c print received data - this is done in main loop to keep time spent in I2C ISR to minimum
+    if(i2c_received)
+    {
+        digitalWrite(LED,HIGH);
+        Serial.printf("Follower received: '%s'\n", i2c_databuf);
+        i2c_received = 0;
+        digitalWrite(LED,LOW);
+    }
+
 
     // Print out information about different devices.
     deviceInfo();
@@ -255,11 +291,11 @@ void loop() {
 
     // blink the LED when any activity has happened
     if (activity) {
-        digitalWriteFast(leds[0], HIGH);  // LED on
+        digitalWriteFast(leds[2], HIGH);  // LED on
         ledOnMillis = 0;
     }
     if (ledOnMillis > 15) {
-        digitalWriteFast(leds[0], LOW);  // LED off
+        digitalWriteFast(leds[2], LOW);  // LED off
     }
 }
 
@@ -448,4 +484,23 @@ void doSysEx() {
             sysExToggled[i] = false;  // for consistant behaviour, start in OFF position
         }
     }
+}
+
+// **** basic i2c functions *******
+
+//
+// handle Rx Event (incoming I2C data)
+//
+void receivei2cEvent(size_t count)
+{
+    Wire.read(i2c_databuf, count);  // copy Rx data to databuf
+    i2c_received = count;           // set received flag to count, this triggers print in main loop
+}
+
+//
+// handle Tx Event (outgoing I2C data)
+//
+void requesti2cEvent(void)
+{
+    Wire.write(i2c_databuf, MEM_LEN); // fill Tx buffer (send full mem)
 }
