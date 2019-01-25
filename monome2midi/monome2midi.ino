@@ -20,7 +20,7 @@
 #include <SLIPEncodedSerial.h>
 #include <SLIPEncodedUSBSerial.h>
 
-#include "MonomeSerial.cpp"
+#include "MonomeSerial.h"
 
 #define USBBAUD 115200
 #define USBFORMAT USBHOST_SERIAL_8N1
@@ -269,8 +269,8 @@ void loop() {
     userial1.poll();
     userial2.poll();
 
-    if (userial1.eventQueue.available()) {
-        MonomeEvent event = userial1.eventQueue.poll();
+    if (userial1.keyPressAvailable()) {
+        MonomeEvent event = userial1.pollKeyPress();
         if (event.gridKeyPressed) {
             userial1.setLed(event.gridKeyX, event.gridKeyY, 9);
             // note on
