@@ -176,6 +176,9 @@ void setup() {
     // writeInt(0x12);
 
     delay(2000);
+
+    userial1.clearAllLeds();
+    userial2.clearAllLeds();
 }
 
 // MAIN LOOP
@@ -227,17 +230,27 @@ void loop() {
 
 
     // process incoming serial from Monomes
-    if (userial1.available() > 0) {
-        do {
-            userial1.processSerial();
-            activity = true;
-        } while (userial1.available() > 16);
-    }
-    if (userial2.available() > 0) {
-        do {
-            userial2.processSerial();
-            activity = true;
-        } while (userial2.available() > 16);
+    userial1.poll();
+    userial2.poll();
+
+    if (userial1.eventQueue.available()) {
+        MonomeEvent event = userial1.eventQueue.poll();
+        if (event.gridKeyPressed) {
+            userial1.setLed(event.gridKeyX, event.gridKeyY, 9);
+            // note on
+            uint8_t note = event.gridKeyX + (event.gridKeyY << 4);
+            myNoteOn(midiChannel, note, 60);
+            Serial.print("Send MIDI note-on : ");
+            Serial.println(note);
+        } else {
+            userial1.clearLed(event.gridKeyX, event.gridKeyY);
+
+            // note off
+            uint8_t note = event.gridKeyX + (event.gridKeyY << 4);
+            myNoteOff(midiChannel, note, 0);
+            Serial.print("Send note-off: ");
+            Serial.println(note);
+        }
     }
 
     // blink the LED when any activity has happened
@@ -347,7 +360,7 @@ void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     midi04.sendNoteOn(note, velocity, channel);
 
     // echo midi note-on back to grid
-    userial1.setLed(note & 15, note >> 4, velocity);
+    //userial1.setLed(note & 15, note >> 4, velocity);
 }
 
 void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -368,7 +381,7 @@ void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     midi04.sendNoteOff(note, velocity, channel);
 
     // echo midi note-off back to grid
-    userial1.clearLed(note & 15, note >> 4);
+    //userial1.clearLed(note & 15, note >> 4);
 }
 
 void myControlChange(byte channel, byte control, byte value) {
