@@ -4,27 +4,43 @@
 #include "Arduino.h"
 #include <USBHost_t36.h>
 
-class MonomeEvent {
+class MonomeGridEvent {
     public:
-        uint8_t gridKeyX;
-        uint8_t gridKeyY;
-        uint8_t gridKeyPressed;
+        uint8_t x;
+        uint8_t y;
+        uint8_t pressed;
+};
+
+class MonomeArcEvent {
+    public:
+        uint8_t index;
+        int8_t delta;
 };
 
 class MonomeEventQueue {
     public:
-        bool keyPressAvailable();
-        MonomeEvent pollKeyPress();
+        bool gridEventAvailable();
+        MonomeGridEvent readGridEvent();
+
+        bool arcEventAvailable();
+        MonomeArcEvent readArcEvent();
         
     protected:
-        void addEvent(uint8_t x, uint8_t y, uint8_t pressed);
+        void addGridEvent(uint8_t x, uint8_t y, uint8_t pressed);
+        void addArcEvent(uint8_t index, int8_t delta);
         
     private:
         static const int MAXEVENTCOUNT = 50;
-        MonomeEvent emptyEvent;
-        MonomeEvent events[MAXEVENTCOUNT];
-        int eventCount = 0;
-        int firstEvent = 0;
+        
+        MonomeGridEvent emptyGridEvent;
+        MonomeGridEvent gridEvents[MAXEVENTCOUNT];
+        int gridEventCount = 0;
+        int gridFirstEvent = 0;
+
+        MonomeArcEvent emptyArcEvent;
+        MonomeArcEvent arcEvents[MAXEVENTCOUNT];
+        int arcEventCount = 0;
+        int arcFirstEvent = 0;
 };
 
 class MonomeSerial : public USBSerial, public MonomeEventQueue {

@@ -31,8 +31,8 @@ void MonomeSerial::processSerial() {
     uint8_t gridNum;  // for reading in data not used by the matrix
     uint8_t readX, readY;    // x and y values read from driver
     uint8_t devSect, devNum;  // x and y device size read from driver
-    uint8_t i, n;
-    int8_t d;
+    uint8_t index, n;
+    int8_t delta;
     uint8_t gridKeyX;
     uint8_t gridKeyY;
     
@@ -55,7 +55,7 @@ void MonomeSerial::processSerial() {
 
         case 0x01:  // system / ID
             // Serial.println("0x01");
-            for (i = 0; i < 32; i++) {  // has to be 32
+            for (int i = 0; i < 32; i++) {  // has to be 32
                 Serial.print(read());
             }
             Serial.println(" ");
@@ -94,7 +94,7 @@ void MonomeSerial::processSerial() {
 
         case 0x0F:  // system / report firmware version
             // Serial.println("0x0F");
-            for (i = 0; i < 8; i++) {  // 8 character string
+            for (int i = 0; i < 8; i++) {  // 8 character string
                 Serial.print(read());
             }
             break;
@@ -109,7 +109,7 @@ void MonomeSerial::processSerial() {
 
             gridKeyX = read();
             gridKeyY = read();
-            addEvent(gridKeyX, gridKeyY, 0);
+            addGridEvent(gridKeyX, gridKeyY, 0);
             
             Serial.print("grid key: ");
             Serial.print(gridKeyX);
@@ -128,7 +128,7 @@ void MonomeSerial::processSerial() {
 
             gridKeyX = read();
             gridKeyY = read();
-            addEvent(gridKeyX, gridKeyY, 1);
+            addGridEvent(gridKeyX, gridKeyY, 1);
 
             Serial.print("grid key: ");
             Serial.print(gridKeyX);
@@ -143,18 +143,7 @@ void MonomeSerial::processSerial() {
             break;
 
         // 0x5x are encoder
-        case 0x50:  // /prefix/enc/delta n d - [0x50, n, d]
-            // Serial.println("0x50");
-            n = read();
-            d = read();
-            Serial.print("encoder: ");
-            Serial.print(n);
-            Serial.print(" : ");
-            Serial.print(d);
-            Serial.println();
-
-            // FIXME myControlChange(1, encoderCCs[n], d);
-
+        case 0x50:
             // bytes: 3
             // structure: [0x50, n, d]
             // n = encoder number
@@ -162,6 +151,19 @@ void MonomeSerial::processSerial() {
             // d = delta
             //  (-128)-127 (two's comp 8 bit)
             // description: encoder position change
+
+            index = read();
+            delta = read();
+            addArcEvent(index, delta);
+
+            Serial.print("encoder: ");
+            Serial.print(index);
+            Serial.print(" : ");
+            Serial.print(delta);
+            Serial.println();
+
+            // FIXME myControlChange(1, encoderCCs[n], d);
+
             break;
 
         case 0x51:  // /prefix/enc/key n (key up)
@@ -205,23 +207,43 @@ void MonomeSerial::processSerial() {
     }
 }
 
-void MonomeEventQueue::addEvent(uint8_t x, uint8_t y, uint8_t pressed) {
-    if (eventCount >= MAXEVENTCOUNT) return;
-    uint8_t index = (firstEvent + eventCount) % MAXEVENTCOUNT;
-    events[index].gridKeyX = x;
-    events[index].gridKeyY = y;
-    events[index].gridKeyPressed = pressed;
-    eventCount++;
+void MonomeEventQueue::addGridEvent(uint8_t x, uint8_t y, uint8_t pressed) {
+    if (gridEventCount >= MAXEVENTCOUNT) return;
+    uint8_t ind = (gridFirstEvent + gridEventCount) % MAXEVENTCOUNT;
+    gridEvents[ind].x = x;
+    gridEvents[ind].y = y;
+    gridEvents[ind].pressed = pressed;
+    gridEventCount++;
 }
 
-bool MonomeEventQueue::keyPressAvailable() {
-    return eventCount > 0;
+bool MonomeEventQueue::gridEventAvailable() {
+    return gridEventCount > 0;
 }
 
-MonomeEvent MonomeEventQueue::pollKeyPress() {
-    if (eventCount == 0) return emptyEvent;
-    eventCount--;
-    uint8_t index = firstEvent;
-    firstEvent = (firstEvent + 1) % MAXEVENTCOUNT;
-    return events[index];
+MonomeGridEvent MonomeEventQueue::readGridEvent() {
+    if (gridEventCount == 0) return emptyGridEvent;
+    gridEventCount--;
+    uint8_t index = gridFirstEvent;
+    gridFirstEvent = (gridFirstEvent + 1) % MAXEVENTCOUNT;
+    return gridEvents[index];
+}
+
+void MonomeEventQueue::addArcEvent(uint8_t index, int8_t delta) {
+    if (arcEventCount >= MAXEVENTCOUNT) return;
+    uint8_t ind = (arcFirstEvent + arcEventCount) % MAXEVENTCOUNT;
+    arcEvents[ind].index = index;
+    arcEvents[ind].delta = delta;
+    arcEventCount++;
+}
+
+bool MonomeEventQueue::arcEventAvailable() {
+    return arcEventCount > 0;
+}
+
+MonomeArcEvent MonomeEventQueue::readArcEvent() {
+    if (arcEventCount == 0) return emptyArcEvent;
+    arcEventCount--;
+    uint8_t index = arcFirstEvent;
+    arcFirstEvent = (arcFirstEvent + 1) % MAXEVENTCOUNT;
+    return arcEvents[index];
 }

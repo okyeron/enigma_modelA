@@ -36,6 +36,7 @@
 #define LED2 22  // enigma LED 2
 #define USBDRIVERCOUNT 10
 #define HIDDEVICECOUNT 3
+#define MONOMEDEVICECOUNT 2
 #define I2CADDR 0x66
 
 // i2c Function prototypes
@@ -51,7 +52,7 @@ volatile uint8_t i2c_received;
 USBHost myusb;  // usb host mode
 USBHub hub1(myusb);
 USBHub hub2(myusb);
-MonomeSerial userial1(myusb);
+MonomeSerial monomeDevices[MONOMEDEVICECOUNT] = { MonomeSerial(myusb), MonomeSerial(myusb) };
 MonomeSerial userial2(myusb);
 MIDIDevice midi01(myusb);
 MIDIDevice midi02(myusb);
@@ -80,7 +81,7 @@ Bounce *buttons[BUTTONCOUNT]{ &pushbutton1, &pushbutton2 };
 // Create the Hardware MIDI-out port
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-USBDriver *drivers[USBDRIVERCOUNT] = { &hub1,   &hub2,   &userial1, &userial2, &midi01,
+USBDriver *drivers[USBDRIVERCOUNT] = { &hub1,   &hub2,   &monomeDevices[0], &monomeDevices[1], &midi01,
                          &midi02, &midi03, &midi04,   &hid1,     &keyboard1 };
 const char *driver_names[USBDRIVERCOUNT] = { "Hub1",     "Hub2",  "USERIAL1",
                                           "USERIAL2", "MIDI1", "MIDI2",
@@ -130,7 +131,6 @@ void setup() {
     digitalWrite(LED1, HIGH);
     pinMode(LED2, OUTPUT);  // LED2 pin
     digitalWrite(LED2, HIGH);
-
 
     MIDI.begin(MIDI_CHANNEL_OMNI);
 
@@ -204,8 +204,7 @@ void setup() {
 
     delay(2000);
 
-    userial1.clearAllLeds();
-    userial2.clearAllLeds();
+    for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].clearAllLeds();
 }
 
 // MAIN LOOP
@@ -266,28 +265,39 @@ void loop() {
 
 
     // process incoming serial from Monomes
-    userial1.poll();
-    userial2.poll();
+    for (int i = 0; i < MONOMEDEVICECOUNT; i++) {
+        monomeDevices[i].poll();
+        if (monomeDevices[i].gridEventAvailable()) {
+            MonomeGridEvent event = monomeDevices[i].readGridEvent();
+            
+            if (event.pressed) {
+                monomeDevices[i].setLed(event.x, event.y, 9);
+                
+                // note on
+                uint8_t note = event.x + (event.y << 4);
+                myNoteOn(midiChannel, note, 60);
+                Serial.print("Send MIDI note-on : ");
+                Serial.println(note);
+            } else {
+                monomeDevices[i].clearLed(event.x, event.y);
+    
+                // note off
+                uint8_t note = event.x + (event.y << 4);
+                myNoteOff(midiChannel, note, 0);
+                Serial.print("Send note-off: ");
+                Serial.println(note);
+            }
+        }
 
-    if (userial1.keyPressAvailable()) {
-        MonomeEvent event = userial1.pollKeyPress();
-        if (event.gridKeyPressed) {
-            userial1.setLed(event.gridKeyX, event.gridKeyY, 9);
-            // note on
-            uint8_t note = event.gridKeyX + (event.gridKeyY << 4);
-            myNoteOn(midiChannel, note, 60);
-            Serial.print("Send MIDI note-on : ");
-            Serial.println(note);
-        } else {
-            userial1.clearLed(event.gridKeyX, event.gridKeyY);
-
-            // note off
-            uint8_t note = event.gridKeyX + (event.gridKeyY << 4);
-            myNoteOff(midiChannel, note, 0);
-            Serial.print("Send note-off: ");
-            Serial.println(note);
+        if (monomeDevices[i].arcEventAvailable()) {
+            MonomeArcEvent event = monomeDevices[i].readArcEvent();
+            Serial.print("ARC: ");
+            Serial.print(event.index);
+            Serial.print(" ");
+            Serial.println(event.delta);
         }
     }
+
 
     // blink the LED when any activity has happened
     if (activity) {
@@ -364,10 +374,14 @@ void deviceInfo() {
                 //Serial.println(devicetype);
 
                 // If this is a new Serial device.
-                if (drivers[i] == &userial1) {
+                if (drivers[i] == &monomeDevices[0]) {
                     // Lets try first outputting something to our USerial to see
                     // if it will go out...
-                    userial1.begin(USBBAUD, USBFORMAT);
+                    monomeDevices[0].begin(USBBAUD, USBFORMAT);
+                } else if (drivers[i] == &monomeDevices[1]) {
+                    // Lets try first outputting something to our USerial to see
+                    // if it will go out...
+                    monomeDevices[1].begin(USBBAUD, USBFORMAT);
                 }
             }
         }
