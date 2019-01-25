@@ -162,8 +162,6 @@ void MonomeSerial::processSerial() {
             Serial.print(delta);
             Serial.println();
 
-            // FIXME myControlChange(1, encoderCCs[n], d);
-
             break;
 
         case 0x51:  // /prefix/enc/key n (key up)

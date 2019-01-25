@@ -291,6 +291,8 @@ void loop() {
 
         if (monomeDevices[i].arcEventAvailable()) {
             MonomeArcEvent event = monomeDevices[i].readArcEvent();
+
+            myControlChange(1, event.index, event.delta);
             Serial.print("ARC: ");
             Serial.print(event.index);
             Serial.print(" ");
