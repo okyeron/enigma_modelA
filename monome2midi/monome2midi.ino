@@ -53,7 +53,8 @@ USBHost myusb;  // usb host mode
 USBHub hub1(myusb);
 USBHub hub2(myusb);
 MonomeSerial monomeDevices[MONOMEDEVICECOUNT] = { MonomeSerial(myusb), MonomeSerial(myusb) };
-MonomeSerial userial2(myusb);
+elapsedMillis monomeRefresh; 
+
 MIDIDevice midi01(myusb);
 MIDIDevice midi02(myusb);
 MIDIDevice midi03(myusb);
@@ -287,6 +288,8 @@ void loop() {
                 Serial.print("Send note-off: ");
                 Serial.println(note);
             }
+            
+            monomeDevices[i].refreshGrid();
         }
 
         if (monomeDevices[i].arcEventAvailable()) {
@@ -308,6 +311,11 @@ void loop() {
     }
     if (ledOnMillis > 15) {
         digitalWriteFast(leds[2], LOW);  // LED off
+    }
+
+    if (monomeRefresh > 50) {
+        for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].refresh();
+        monomeRefresh = 0;
     }
 }
 

@@ -3,10 +3,8 @@
 MonomeSerial::MonomeSerial(USBHost usbHost) : USBSerial(usbHost) {}
    
 void MonomeSerial::setLed(uint8_t x, uint8_t y, uint8_t level) {
-    write(0x18);  // /prefix/led/level/set x y i
-    write(x);
-    write(y);
-    write(level);
+    int index = x + (y << 4);
+    if (index < MAXLEDCOUNT) leds[index] = level;
 }
         
 void MonomeSerial::clearLed(uint8_t x, uint8_t y) {
@@ -14,10 +12,64 @@ void MonomeSerial::clearLed(uint8_t x, uint8_t y) {
 }
 
 void MonomeSerial::clearAllLeds() {
-    // FIXME
-    for (int x = 0; x < 16; x++)
-        for (int y = 0; y < 16; y++)
-            clearLed(x, y);
+    for (int i = 0; i < MAXLEDCOUNT; i++) leds[i] = 0;
+}
+
+void MonomeSerial::refreshGrid() {
+    gridDirty = true;
+}
+
+void MonomeSerial::refreshArc() {
+    arcDirty = true;
+}
+
+void MonomeSerial::refresh() {
+    uint8_t buf[35];
+
+    if (gridDirty) {
+        buf[0] = 0x1A;
+        buf[1] = 0;
+        buf[2] = 0;
+
+        uint8_t ind, led;
+
+        ind = 3;
+        for (int y = 0; y < 8; y++)
+            for (int x = 0; x < 8; x += 2) {
+                led = (y << 4) + x;
+                buf[ind++] = (leds[led] << 4) | leds[led + 1];
+            }
+        write(buf, 35);
+        
+        ind = 3;
+        buf[1] = 8;
+        for (int y = 0; y < 8; y++)
+            for (int x = 8; x < 16; x += 2) {
+                led = (y << 4) + x;
+                buf[ind++] = (leds[led] << 4) | leds[led + 1];
+            }
+        write(buf, 35);
+        
+        ind = 3;
+        buf[1] = 0;
+        buf[2] = 8;
+        for (int y = 8; y < 16; y++)
+            for (int x = 0; x < 8; x += 2) {
+                led = (y << 4) + x;
+                buf[ind++] = (leds[led] << 4) | leds[led + 1];
+            }
+        write(buf, 35);
+
+        ind = 3;
+        buf[1] = 8;
+        for (int y = 8; y < 16; y++)
+            for (int x = 8; x < 16; x += 2) {
+                led = (y << 4) + x;
+                buf[ind++] = (leds[led] << 4) | leds[led + 1];
+            }
+        write(buf, 35);
+        gridDirty = false;
+    }
 }
 
 void MonomeSerial::poll() {

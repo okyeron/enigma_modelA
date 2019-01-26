@@ -46,13 +46,23 @@ class MonomeEventQueue {
 class MonomeSerial : public USBSerial, public MonomeEventQueue {
     public: 
         MonomeSerial(USBHost usbHost);
+        void poll();
+        void refresh();
+
         void setLed(uint8_t x, uint8_t y, uint8_t level);
         void clearLed(uint8_t x, uint8_t y);
         void clearAllLeds();
-        void poll();
+        void refreshGrid();
+        void refreshArc();
         
     private : 
+        static const int MAXLEDCOUNT = 256;
+        uint8_t leds[MAXLEDCOUNT];
+        bool arcDirty = false;
+        bool gridDirty = false;
+
         void processSerial();
+        MonomeSerial();
 };
 
 #endif
