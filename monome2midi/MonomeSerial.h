@@ -59,7 +59,7 @@ class MonomeSerial : public USBSerial, public MonomeEventQueue {
         void refreshArc();
         
     private : 
-        static const int MAXLEDCOUNT = 256;
+        static const int MAXLEDCOUNT = 512;
         uint8_t leds[MAXLEDCOUNT];
         bool arcDirty = false;
         bool gridDirty = false;

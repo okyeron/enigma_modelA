@@ -86,7 +86,7 @@ void MonomeSerial::refresh() {
 
     if (arcDirty) {
         buf[0] = 0x92;
-        
+
         buf[1] = 0;
         ind = 2;
         for (led = 0; led < 64; led += 2)
@@ -111,6 +111,30 @@ void MonomeSerial::refresh() {
             buf[ind++] = (leds[led] << 4) | leds[led + 1];
         write(buf, 34);
         
+        buf[1] = 4;
+        ind = 2;
+        for (led = 256; led < 320; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+
+        buf[1] = 5;
+        ind = 2;
+        for (led = 320; led < 384; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+
+        buf[1] = 6;
+        ind = 2;
+        for (led = 384; led < 448; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+
+        buf[1] = 7;
+        ind = 2;
+        for (led = 448; led < 512; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+
         arcDirty = 0;
     }
 }
