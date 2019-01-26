@@ -49,9 +49,12 @@ class MonomeSerial : public USBSerial, public MonomeEventQueue {
         void poll();
         void refresh();
 
-        void setLed(uint8_t x, uint8_t y, uint8_t level);
-        void clearLed(uint8_t x, uint8_t y);
+        void setGridLed(uint8_t x, uint8_t y, uint8_t level);
+        void clearGridLed(uint8_t x, uint8_t y);
+        void setArcLed(uint8_t enc, uint8_t led, uint8_t level);
+        void clearArcLed(uint8_t enc, uint8_t led);
         void clearAllLeds();
+        void clearArcRing(uint8_t ring);
         void refreshGrid();
         void refreshArc();
         

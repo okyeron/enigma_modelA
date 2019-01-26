@@ -2,17 +2,30 @@
 
 MonomeSerial::MonomeSerial(USBHost usbHost) : USBSerial(usbHost) {}
    
-void MonomeSerial::setLed(uint8_t x, uint8_t y, uint8_t level) {
+void MonomeSerial::setGridLed(uint8_t x, uint8_t y, uint8_t level) {
     int index = x + (y << 4);
     if (index < MAXLEDCOUNT) leds[index] = level;
 }
         
-void MonomeSerial::clearLed(uint8_t x, uint8_t y) {
-    setLed(x, y, 0);
+void MonomeSerial::clearGridLed(uint8_t x, uint8_t y) {
+    setGridLed(x, y, 0);
+}
+
+void MonomeSerial::setArcLed(uint8_t enc, uint8_t led, uint8_t level) {
+    int index = led + (enc << 6);
+    if (index < MAXLEDCOUNT) leds[index] = level;
+}
+        
+void MonomeSerial::clearArcLed(uint8_t enc, uint8_t led) {
+    setArcLed(enc, led, 0);
 }
 
 void MonomeSerial::clearAllLeds() {
     for (int i = 0; i < MAXLEDCOUNT; i++) leds[i] = 0;
+}
+
+void MonomeSerial::clearArcRing(uint8_t ring) {
+    for (int i = ring << 6, upper = i + 64; i < upper; i++) leds[i] = 0;
 }
 
 void MonomeSerial::refreshGrid() {
@@ -25,13 +38,12 @@ void MonomeSerial::refreshArc() {
 
 void MonomeSerial::refresh() {
     uint8_t buf[35];
+    int ind, led;
 
     if (gridDirty) {
         buf[0] = 0x1A;
         buf[1] = 0;
         buf[2] = 0;
-
-        uint8_t ind, led;
 
         ind = 3;
         for (int y = 0; y < 8; y++)
@@ -68,7 +80,38 @@ void MonomeSerial::refresh() {
                 buf[ind++] = (leds[led] << 4) | leds[led + 1];
             }
         write(buf, 35);
+        
         gridDirty = false;
+    }
+
+    if (arcDirty) {
+        buf[0] = 0x92;
+        
+        buf[1] = 0;
+        ind = 2;
+        for (led = 0; led < 64; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+        
+        buf[1] = 1;
+        ind = 2;
+        for (led = 64; led < 128; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+
+        buf[1] = 2;
+        ind = 2;
+        for (led = 128; led < 192; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+        
+        buf[1] = 3;
+        ind = 2;
+        for (led = 192; led < 256; led += 2)
+            buf[ind++] = (leds[led] << 4) | leds[led + 1];
+        write(buf, 34);
+        
+        arcDirty = 0;
     }
 }
 

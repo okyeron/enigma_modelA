@@ -37,6 +37,7 @@
 #define USBDRIVERCOUNT 10
 #define HIDDEVICECOUNT 3
 #define MONOMEDEVICECOUNT 2
+#define MONOMEARCENCOUDERCOUNT 4
 #define I2CADDR 0x66
 
 // i2c Function prototypes
@@ -53,7 +54,8 @@ USBHost myusb;  // usb host mode
 USBHub hub1(myusb);
 USBHub hub2(myusb);
 MonomeSerial monomeDevices[MONOMEDEVICECOUNT] = { MonomeSerial(myusb), MonomeSerial(myusb) };
-elapsedMillis monomeRefresh; 
+elapsedMillis monomeRefresh;
+int arcValues[MONOMEARCENCOUDERCOUNT];
 
 MIDIDevice midi01(myusb);
 MIDIDevice midi02(myusb);
@@ -206,6 +208,7 @@ void setup() {
     delay(2000);
 
     for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].clearAllLeds();
+    for (int i = 0; i < MONOMEARCENCOUDERCOUNT; i++) arcValues[i] = 0;
 }
 
 // MAIN LOOP
@@ -272,7 +275,7 @@ void loop() {
             MonomeGridEvent event = monomeDevices[i].readGridEvent();
             
             if (event.pressed) {
-                monomeDevices[i].setLed(event.x, event.y, 9);
+                monomeDevices[i].setGridLed(event.x, event.y, 9);
                 
                 // note on
                 uint8_t note = event.x + (event.y << 4);
@@ -280,7 +283,7 @@ void loop() {
                 Serial.print("Send MIDI note-on : ");
                 Serial.println(note);
             } else {
-                monomeDevices[i].clearLed(event.x, event.y);
+                monomeDevices[i].clearGridLed(event.x, event.y);
     
                 // note off
                 uint8_t note = event.x + (event.y << 4);
@@ -294,12 +297,20 @@ void loop() {
 
         if (monomeDevices[i].arcEventAvailable()) {
             MonomeArcEvent event = monomeDevices[i].readArcEvent();
+            if (event.index < MONOMEARCENCOUDERCOUNT) {
+                arcValues[event.index] = (arcValues[event.index] + 64 + event.delta) & 63;
+                monomeDevices[i].clearArcRing(event.index);
+                monomeDevices[i].setArcLed(event.index, arcValues[event.index], 9);
+                monomeDevices[i].refreshArc();
+            }
 
             myControlChange(1, event.index, event.delta);
             Serial.print("ARC: ");
             Serial.print(event.index);
             Serial.print(" ");
-            Serial.println(event.delta);
+            Serial.print(event.delta);
+            Serial.print(" ");
+            Serial.println(arcValues[event.index]);
         }
     }
 
