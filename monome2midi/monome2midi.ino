@@ -43,6 +43,12 @@
 #define MONOMEARCENCOUDERCOUNT 8
 #define I2CADDR 0x66
 
+// i2c
+// LEADER MODE allows you to broadcast values
+// uncomment this #define and compile the firmware
+//
+//#define LEADER 1
+
 // i2c Function prototypes
 void receivei2cEvent(size_t count);
 void requesti2cEvent(void);
@@ -145,17 +151,22 @@ void setup() {
 
     MIDI.begin(MIDI_CHANNEL_OMNI);
 
-    // Setup for Follower mode, address 0x66, pins 18/19, external pullups, 400kHz
+#ifdef LEADER
+	Wire.begin(I2C_MASTER, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000); 
+#else
+	// follower mode
     Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
     Wire.setDefaultTimeout(10000); // 10ms
 
-    // Data init
+    // Data init	// IS THIS NEEDED
     i2c_received = 0;
     memset(i2c_databuf, 0, sizeof(i2c_databuf));
 
     // register events
     Wire.onReceive(receivei2cEvent);
     Wire.onRequest(requesti2cEvent);
+#endif
+
 
     Serial.begin(115200);
 
@@ -483,21 +494,40 @@ void doSysEx() {
     }
 }
 
-// **** basic i2c functions *******
+// ****  i2c functions *******
 
-//
-// handle Rx Event (incoming I2C data)
-//
-void receivei2cEvent(size_t count)
-{
-    Wire.read(i2c_databuf, count);  // copy Rx data to databuf
-    i2c_received = count;           // set received flag to count, this triggers print in main loop
+#ifdef LEADER
+/*
+ * Sends an i2c command out to a follower when running in leader mode
+ */
+void sendi2c(uint8_t model, uint8_t deviceIndex, uint8_t cmd, uint8_t devicePort, int value){
+      
+      valueTemp = (uint16_t)value;
+      messageBuffer[2] = valueTemp >> 8;
+      messageBuffer[3] = valueTemp & 0xff;
+
+      Wire.beginTransmission(model + deviceIndex);
+      messageBuffer[0] = cmd; 
+      messageBuffer[1] = (uint8_t)devicePort;
+      Wire.write(messageBuffer, 4);
+      Wire.endTransmission();
 }
 
-//
-// handle Tx Event (outgoing I2C data)
-//
-void requesti2cEvent(void)
-{
-    Wire.write(i2c_databuf, MEM_LEN); // fill Tx buffer (send full mem)
-}
+#else
+	//
+	// handle Rx Event (incoming I2C data)
+	//
+	void receivei2cEvent(size_t count)
+	{
+		Wire.read(i2c_databuf, count);  // copy Rx data to databuf
+		i2c_received = count;           // set received flag to count, this triggers print in main loop
+	}
+
+	//
+	// handle Tx Event (outgoing I2C data)
+	//
+	void requesti2cEvent(void)
+	{
+		Wire.write(i2c_databuf, MEM_LEN); // fill Tx buffer (send full mem)
+	}
+#endif
