@@ -64,8 +64,8 @@ class MonomeSerial : public USBSerial, public MonomeEventQueue {
         bool arcDirty = false;
         bool gridDirty = false;
 
-        void processSerial();
         MonomeSerial();
+        void processSerial();
 };
 
 #endif

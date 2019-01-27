@@ -275,11 +275,13 @@ void MonomeSerial::processSerial() {
             delta = read();
             addArcEvent(index, delta);
 
+            /*
             Serial.print("encoder: ");
             Serial.print(index);
             Serial.print(" : ");
             Serial.print(delta);
             Serial.println();
+            */
 
             break;
 

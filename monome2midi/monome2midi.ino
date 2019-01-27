@@ -21,6 +21,9 @@
 #include <SLIPEncodedUSBSerial.h>
 
 #include "MonomeSerial.h"
+#include "Interface.h"
+#include "App.h"
+#include "GameOfLife.h"
 
 #define USBBAUD 115200
 #define USBFORMAT USBHOST_SERIAL_8N1
@@ -120,6 +123,11 @@ const uint8_t gridX = 16;       // Will be either 8 or 16
 const uint8_t gridY = 8;        // standard for 128
 /* --- */
 
+Interface *interface;
+App *app;
+elapsedMillis mainClock;
+bool mainClockPhase;
+
 // SETUP
 
 void setup() {
@@ -176,30 +184,30 @@ void setup() {
     deviceInfo();
 
     // USB connected midi device i/o
-    midi01.setHandleNoteOn(myNoteOn);
-    midi01.setHandleNoteOff(myNoteOff);
+    midi01.setHandleNoteOn(midiNoteOn);
+    midi01.setHandleNoteOff(midiNoteOff);
     midi01.setHandleControlChange(myControlChange);
 
-    midi02.setHandleNoteOn(myNoteOn);
-    midi02.setHandleNoteOff(myNoteOff);
+    midi02.setHandleNoteOn(midiNoteOn);
+    midi02.setHandleNoteOff(midiNoteOff);
     midi02.setHandleControlChange(myControlChange);
 
-    midi03.setHandleNoteOn(myNoteOn);
-    midi03.setHandleNoteOff(myNoteOff);
+    midi03.setHandleNoteOn(midiNoteOn);
+    midi03.setHandleNoteOff(midiNoteOff);
     midi03.setHandleControlChange(myControlChange);
 
-    midi04.setHandleNoteOn(myNoteOn);
-    midi04.setHandleNoteOff(myNoteOff);
+    midi04.setHandleNoteOn(midiNoteOn);
+    midi04.setHandleNoteOff(midiNoteOff);
     midi04.setHandleControlChange(myControlChange);
 
     // HARDWARE MIDI
-    MIDI.setHandleNoteOn(myNoteOn);
-    MIDI.setHandleNoteOff(myNoteOff);
+    MIDI.setHandleNoteOn(midiNoteOn);
+    MIDI.setHandleNoteOff(midiNoteOff);
     MIDI.setHandleControlChange(myControlChange);
 
     // USB MIDI
-    usbMIDI.setHandleNoteOn(myNoteOn);
-    usbMIDI.setHandleNoteOff(myNoteOff);
+    usbMIDI.setHandleNoteOn(midiNoteOn);
+    usbMIDI.setHandleNoteOff(midiNoteOff);
     usbMIDI.setHandleControlChange(myControlChange);
     usbMIDI.setHandleSystemExclusive(mySystemExclusive);
 
@@ -209,6 +217,11 @@ void setup() {
 
     for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].clearAllLeds();
     for (int i = 0; i < MONOMEARCENCOUDERCOUNT; i++) arcValues[i] = 0;
+
+    interface = new Interface();
+    app = new GameOfLife(interface, 0, 1);
+    mainClock = 0;
+    mainClockPhase = 0;
 }
 
 // MAIN LOOP
@@ -271,15 +284,17 @@ void loop() {
     // process incoming serial from Monomes
     for (int i = 0; i < MONOMEDEVICECOUNT; i++) {
         monomeDevices[i].poll();
-        if (monomeDevices[i].gridEventAvailable()) {
+        while (monomeDevices[i].gridEventAvailable()) {
             MonomeGridEvent event = monomeDevices[i].readGridEvent();
-            
+            app->gridEvent(i, event.x, event.y, event.pressed);
+
+            /*
             if (event.pressed) {
                 monomeDevices[i].setGridLed(event.x, event.y, 9);
                 
                 // note on
                 uint8_t note = event.x + (event.y << 4);
-                myNoteOn(midiChannel, note, 60);
+                midiNoteOn(midiChannel, note, 60);
                 Serial.print("Send MIDI note-on : ");
                 Serial.println(note);
             } else {
@@ -287,16 +302,20 @@ void loop() {
     
                 // note off
                 uint8_t note = event.x + (event.y << 4);
-                myNoteOff(midiChannel, note, 0);
+                midiNoteOff(midiChannel, note, 0);
                 Serial.print("Send note-off: ");
                 Serial.println(note);
             }
             
             monomeDevices[i].refreshGrid();
+            */
         }
 
-        if (monomeDevices[i].arcEventAvailable()) {
+        while (monomeDevices[i].arcEventAvailable()) {
             MonomeArcEvent event = monomeDevices[i].readArcEvent();
+            app->arcEvent(i, event.index, event.delta);
+
+            /*
             if (event.index < MONOMEARCENCOUDERCOUNT) {
                 arcValues[event.index] = (arcValues[event.index] + 64 + event.delta) & 63;
                 monomeDevices[i].clearArcRing(event.index);
@@ -311,6 +330,7 @@ void loop() {
             Serial.print(event.delta);
             Serial.print(" ");
             Serial.println(arcValues[event.index]);
+            */
         }
     }
 
@@ -322,6 +342,12 @@ void loop() {
     }
     if (ledOnMillis > 15) {
         digitalWriteFast(leds[2], LOW);  // LED off
+    }
+
+    if (mainClock > 100) {
+        mainClockPhase = !mainClockPhase;
+        app->clock(mainClockPhase);
+        mainClock = 0;
     }
 
     if (monomeRefresh > 50) {
@@ -407,70 +433,6 @@ void deviceInfo() {
             }
         }
     }
-}
-
-// MIDI NOTE/CC HANDLERS
-
-void myNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
-    // When using MIDIx4 or MIDIx16, usbMIDI.getCable() can be used
-    // to read which of the virtual MIDI cables received this message.
-    usbMIDI.sendNoteOn(note, velocity, channel);
-    MIDI.sendNoteOn(note, velocity, channel);
-
-    Serial.print("Note On, ch=");
-    Serial.print(channel, DEC);
-    Serial.print(", note=");
-    Serial.print(note, DEC);
-    Serial.print(", velocity=");
-    Serial.println(velocity, DEC);
-
-    // echo midi note-on back to midi device?
-    midi01.sendNoteOn(note, velocity, channel);
-    midi02.sendNoteOn(note, velocity, channel);
-    midi03.sendNoteOn(note, velocity, channel);
-    midi04.sendNoteOn(note, velocity, channel);
-
-    // echo midi note-on back to grid
-    //userial1.setLed(note & 15, note >> 4, velocity);
-}
-
-void myNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
-    usbMIDI.sendNoteOff(note, 0, channel);
-    MIDI.sendNoteOff(note, 0, channel);
-
-    Serial.print("Note Off, ch=");
-    Serial.print(channel, DEC);
-    Serial.print(", note=");
-    Serial.print(note, DEC);
-    Serial.print(", velocity=");
-    Serial.println(velocity, DEC);
-
-    // echo midi note-off back to midi device?
-    midi01.sendNoteOff(note, velocity, channel);
-    midi02.sendNoteOff(note, velocity, channel);
-    midi03.sendNoteOff(note, velocity, channel);
-    midi04.sendNoteOff(note, velocity, channel);
-
-    // echo midi note-off back to grid
-    //userial1.clearLed(note & 15, note >> 4);
-}
-
-void myControlChange(byte channel, byte control, byte value) {
-    usbMIDI.sendControlChange(control, value, channel);
-    MIDI.sendControlChange(control, value, channel);
-
-    /*
-      midi01.sendControlChange(control, value, channel);
-      midi02.sendControlChange(control, value, channel);
-      midi03.sendControlChange(control, value, channel);
-      midi04.sendControlChange(control, value, channel);
-    */
-    Serial.print("Control Change, ch=");
-    Serial.print(channel, DEC);
-    Serial.print(", control=");
-    Serial.print(control, DEC);
-    Serial.print(", value=");
-    Serial.println(value, DEC);
 }
 
 //************ SYSEX CALLBACKS **************
