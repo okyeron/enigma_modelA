@@ -45,7 +45,7 @@
 
 // i2c
 // LEADER MODE allows you to broadcast values
-// uncomment this #define and compile the firmware
+// set to 0 for follower mode
 
 #define LEADER 1
 
@@ -160,37 +160,34 @@ void setup() {
     i2c_received = 0;
     memset(i2c_databuf, 0, sizeof(i2c_databuf));
 
-#ifdef LEADER
-  	Wire.begin(I2C_MASTER, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000); 
-  	Wire.setDefaultTimeout(100000); // 100ms
-  
-    // register callbacks
-    Wire.onTransmitDone(i2cTransmitDone);
-    Wire.onReqFromDone(i2cRequestDone);
-    delay(500);
-  
-    // SCAN i2c BUS TO GET ADDRESSES OF CONNECTED DEVICES
-  	Serial.print("---------------------\n");
-    Serial.print("Starting i2c scan...\n");
-  	for(target = 1; target <= 0x7F; target++) // sweep addr, skip general call
-  	{
-  		Wire.beginTransmission(target);       // slave addr
-  		Wire.endTransmission();               // no data, just addr
-  		print_scan_status(target, all);
-  	}
-  	if(!found) Serial.print("No i2c devices found.\n");
+    if (LEADER) {
+        Wire.begin(I2C_MASTER, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000); 
+        Wire.setDefaultTimeout(100000); // 100ms
+      
+        // register callbacks
+        Wire.onTransmitDone(i2cTransmitDone);
+        Wire.onReqFromDone(i2cRequestDone);
+        delay(500);
+      
+        // SCAN i2c BUS TO GET ADDRESSES OF CONNECTED DEVICES
+        Serial.print("---------------------\n");
+        Serial.print("Starting i2c scan...\n");
+        for(target = 1; target <= 0x7F; target++) // sweep addr, skip general call
+        {
+            Wire.beginTransmission(target);       // slave addr
+            Wire.endTransmission();               // no data, just addr
+            print_scan_status(target, all);
+        }
+        if(!found) Serial.print("No i2c devices found.\n");
+    } else {
+        // follower mode
+        Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
+        Wire.setDefaultTimeout(10000); // 10ms
+        // register events
+        Wire.onReceive(receivei2cEvent);
+        Wire.onRequest(requesti2cEvent);
+    }
 	
-#else
-  	// follower mode
-    Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
-    Wire.setDefaultTimeout(10000); // 10ms
-    // register events
-    Wire.onReceive(receivei2cEvent);
-    Wire.onRequest(requesti2cEvent);
-
-#endif
-
-
     Serial.begin(115200);
 
     // EEPROM - read EEPROM for sysEx data
@@ -545,82 +542,4 @@ void doSysEx() {
             sysExToggled[i] = false;  // for consistant behaviour, start in OFF position
         }
     }
-}
-
-// ****  i2c functions *******
-
-#ifdef LEADER
-/*
- * Sends an i2c command out to a follower when running in leader mode
- */
-void sendi2c(uint8_t model, uint8_t deviceIndex, uint8_t cmd, uint8_t devicePort, int value){
-      uint16_t valueTemp;
-      uint8_t messageBuffer[4];
-
-      valueTemp = (uint16_t)value;
-      messageBuffer[2] = valueTemp >> 8;
-      messageBuffer[3] = valueTemp & 0xff;
-
-      Wire.beginTransmission(model + deviceIndex);
-      messageBuffer[0] = cmd; 
-      messageBuffer[1] = (uint8_t)devicePort;
-      Wire.write(messageBuffer, 4);
-      Wire.endTransmission();
-}
-
-#endif
-
-// ***** i2c ******
-
-//
-// handle Rx Event (incoming I2C data)
-//
-void receivei2cEvent(size_t count)
-{
-    //Wire.read(i2c_databuf, Wire.available());  // copy Rx data to databuf
-    //i2c_received = count;           // set received flag to count, this triggers print in main loop
-    Serial.printf("i2c read: (%d)\n", count);
-}
-
-//
-// handle Tx Event (outgoing I2C data)
-//
-void requesti2cEvent(void)
-{
-  //Wire.write(i2c_databuf, MEM_LEN); // fill Tx buffer (send full mem)
-  //Serial.printf("i2c write (%d)\n", MEM_LEN);
-  Serial.print("i2c Read request \n");
-}
-
-// i2c print scan status
-//
-void print_scan_status(uint8_t target, uint8_t all)
-{
-    switch(Wire.status())
-    {
-    case I2C_WAITING:  
-        Serial.printf("Addr: 0x%02X ACK\n", target);
-        found = 1;
-        break;
-    case I2C_ADDR_NAK: 
-        if(all) Serial.printf("Addr: 0x%02X\n", target); 
-        break;
-    default:
-        break;
-    }
-}
-
-// i2c trigger after Tx complete (outgoing I2C data)
-//
-void i2cTransmitDone(void)
-{
-    Serial.print("OK\n");
-}
-
-// i2c trigger after Rx complete (incoming I2C data)
-//
-void i2cRequestDone(void)
-{
-    Wire.read(i2c_databuf, Wire.available());
-    Serial.printf("'%s' OK\n",i2c_databuf);
 }
