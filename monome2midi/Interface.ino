@@ -29,3 +29,7 @@ void Interface::noteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
 void Interface::noteOff(uint8_t channel, uint8_t note) {
     midiNoteOff(channel, note, 0);
 }
+
+void Interface::controlChange(byte channel, byte control, byte value) {
+    midiControlChange(channel, control, value);
+}

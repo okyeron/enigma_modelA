@@ -13,6 +13,7 @@ class Interface {
         void refreshArc(uint8_t device);
         void noteOn(uint8_t channel, uint8_t note, uint8_t velocity);
         void noteOff(uint8_t channel, uint8_t note);
+        void controlChange(byte channel, byte control, byte value);
 };
 
 #endif

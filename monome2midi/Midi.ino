@@ -4,17 +4,15 @@ void midiNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     // When using MIDIx4 or MIDIx16, usbMIDI.getCable() can be used
     // to read which of the virtual MIDI cables received this message.
     
-    usbMIDI.sendNoteOn(note, velocity, channel);
-    MIDI.sendNoteOn(note, velocity, channel);
-
-    /*
-    Serial.print("Note On, ch=");
+    Serial.print("Note On sent, ch=");
     Serial.print(channel, DEC);
     Serial.print(", note=");
     Serial.print(note, DEC);
     Serial.print(", velocity=");
     Serial.println(velocity, DEC);
-    */
+
+    usbMIDI.sendNoteOn(note, velocity, channel);
+    MIDI.sendNoteOn(note, velocity, channel);
 
     // echo midi note-on back to midi device?
     midi01.sendNoteOn(note, velocity, channel);
@@ -27,14 +25,12 @@ void midiNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     usbMIDI.sendNoteOff(note, 0, channel);
     MIDI.sendNoteOff(note, 0, channel);
 
-    /*
-    Serial.print("Note Off, ch=");
+    Serial.print("Note Off sent, ch=");
     Serial.print(channel, DEC);
     Serial.print(", note=");
     Serial.print(note, DEC);
     Serial.print(", velocity=");
     Serial.println(velocity, DEC);
-    */
 
     // echo midi note-off back to midi device?
     midi01.sendNoteOff(note, 0, channel);
@@ -43,8 +39,8 @@ void midiNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     midi04.sendNoteOff(note, 0, channel);
 }
 
-void myControlChange(byte channel, byte control, byte value) {
-    usbMIDI.sendControlChange(control, value, channel);
+void midiControlChange(byte channel, byte control, byte value) {
+    //usbMIDI.sendControlChange(control, value, channel);
     MIDI.sendControlChange(control, value, channel);
 
     /*
@@ -53,10 +49,46 @@ void myControlChange(byte channel, byte control, byte value) {
       midi03.sendControlChange(control, value, channel);
       midi04.sendControlChange(control, value, channel);
     */
-    Serial.print("Control Change, ch=");
+    Serial.print("Control Change sent, ch=");
     Serial.print(channel, DEC);
     Serial.print(", control=");
     Serial.print(control, DEC);
     Serial.print(", value=");
     Serial.println(value, DEC);
+}
+
+void midiHandleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
+    Serial.print("Note On received, ch=");
+    Serial.print(channel, DEC);
+    Serial.print(", note=");
+    Serial.print(note, DEC);
+    Serial.print(", velocity=");
+    Serial.println(velocity, DEC);
+
+}
+
+void midiHandleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
+    Serial.print("Note Off received, ch=");
+    Serial.print(channel, DEC);
+    Serial.print(", note=");
+    Serial.print(note, DEC);
+    Serial.print(", velocity=");
+    Serial.println(velocity, DEC);
+}
+
+void midiHandleControlChange(byte channel, byte control, byte value) {
+    Serial.print("Control Change received, ch=");
+    Serial.print(channel, DEC);
+    Serial.print(", control=");
+    Serial.print(control, DEC);
+    Serial.print(", value=");
+    Serial.println(value, DEC);
+}
+
+void midiHandleClock(void) {
+    app->clock(1); // FIXME
+}
+
+void midiHandleStart(void) {
+    Serial.println("MIDI START");
 }

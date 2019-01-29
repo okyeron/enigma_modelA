@@ -184,32 +184,44 @@ void setup() {
     deviceInfo();
 
     // USB connected midi device i/o
-    midi01.setHandleNoteOn(midiNoteOn);
-    midi01.setHandleNoteOff(midiNoteOff);
-    midi01.setHandleControlChange(myControlChange);
+    midi01.setHandleNoteOn(midiHandleNoteOn);
+    midi01.setHandleNoteOff(midiHandleNoteOff);
+    midi01.setHandleControlChange(midiHandleControlChange);
+    midi01.setHandleClock(midiHandleClock);
+    midi01.setHandleStart(midiHandleStart);
 
-    midi02.setHandleNoteOn(midiNoteOn);
-    midi02.setHandleNoteOff(midiNoteOff);
-    midi02.setHandleControlChange(myControlChange);
+    midi02.setHandleNoteOn(midiHandleNoteOn);
+    midi02.setHandleNoteOff(midiHandleNoteOff);
+    midi02.setHandleControlChange(midiHandleControlChange);
+    midi02.setHandleClock(midiHandleClock);
+    midi02.setHandleStart(midiHandleStart);
 
-    midi03.setHandleNoteOn(midiNoteOn);
-    midi03.setHandleNoteOff(midiNoteOff);
-    midi03.setHandleControlChange(myControlChange);
+    midi03.setHandleNoteOn(midiHandleNoteOn);
+    midi03.setHandleNoteOff(midiHandleNoteOff);
+    midi03.setHandleControlChange(midiHandleControlChange);
+    midi03.setHandleClock(midiHandleClock);
+    midi03.setHandleStart(midiHandleStart);
 
-    midi04.setHandleNoteOn(midiNoteOn);
-    midi04.setHandleNoteOff(midiNoteOff);
-    midi04.setHandleControlChange(myControlChange);
+    midi04.setHandleNoteOn(midiHandleNoteOn);
+    midi04.setHandleNoteOff(midiHandleNoteOff);
+    midi04.setHandleControlChange(midiHandleControlChange);
+    midi04.setHandleClock(midiHandleClock);
+    midi04.setHandleStart(midiHandleStart);
 
     // HARDWARE MIDI
-    MIDI.setHandleNoteOn(midiNoteOn);
-    MIDI.setHandleNoteOff(midiNoteOff);
-    MIDI.setHandleControlChange(myControlChange);
+    MIDI.setHandleNoteOn(midiHandleNoteOn);
+    MIDI.setHandleNoteOff(midiHandleNoteOff);
+    MIDI.setHandleControlChange(midiHandleControlChange);
+    MIDI.setHandleClock(midiHandleClock);
+    MIDI.setHandleStart(midiHandleStart);
 
     // USB MIDI
-    usbMIDI.setHandleNoteOn(midiNoteOn);
-    usbMIDI.setHandleNoteOff(midiNoteOff);
-    usbMIDI.setHandleControlChange(myControlChange);
+    usbMIDI.setHandleNoteOn(midiHandleNoteOn);
+    usbMIDI.setHandleNoteOff(midiHandleNoteOff);
+    usbMIDI.setHandleControlChange(midiHandleControlChange);
     usbMIDI.setHandleSystemExclusive(mySystemExclusive);
+    usbMIDI.setHandleClock(midiHandleClock);
+    usbMIDI.setHandleStart(midiHandleStart);
 
     // writeInt(0x12);
 
@@ -344,11 +356,13 @@ void loop() {
         digitalWriteFast(leds[2], LOW);  // LED off
     }
 
-    if (mainClock > 100) {
+    /*
+    if (mainClock > 150) {
         mainClockPhase = !mainClockPhase;
         app->clock(mainClockPhase);
         mainClock = 0;
     }
+    */
 
     if (monomeRefresh > 50) {
         for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].refresh();
