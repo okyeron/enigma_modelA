@@ -163,7 +163,8 @@ void setup() {
     if (LEADER) {
         Wire.begin(I2C_MASTER, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000); 
         Wire.setDefaultTimeout(100000); // 100ms
-      
+      	Wire.resetBus();
+      	
         // register callbacks
         Wire.onTransmitDone(i2cTransmitDone);
         Wire.onReqFromDone(i2cRequestDone);
@@ -296,19 +297,21 @@ void loop() {
     }  // END BUTTONS LOOP
 
 
- /*
+    // Need to write something here to set which control to listen to?
+    
+    Wire.requestFrom(0x34, MEM_LEN); // Read from Follower (string len unknown, request full buffer)
+
+    // Wire.read happens in callback
+    
     // i2c print received data - this is done in main loop to keep time spent in I2C ISR to minimum
     if(i2c_received)
     {
-        digitalWrite(LED,HIGH);
-        Serial.printf("Follower received: '%s'\n", i2c_databuf);
+        Serial.printf("Follower received: '%d'\n", i2c_databuf[0]);
         i2c_received = 0;
-        digitalWrite(LED,LOW);
     }
-*/
-       // Read from Slave
-        Wire.requestFrom(0x34, MEM_LEN); // Read from Slave (string len unknown, request full buffer)
 
+
+ /*
         // Check if error occured
         if(Wire.getError())
             Serial.print("FAIL\n");
@@ -316,9 +319,9 @@ void loop() {
         {
             // If no error then read Rx data into buffer and print
             Wire.read(i2c_databuf, Wire.available());
-            Serial.printf("'%s' OK\n",i2c_databuf);
+            Serial.printf("'%s' OK (main)\n",i2c_databuf);
         }
-
+*/
 
     // Print out information about different devices.
     deviceInfo();

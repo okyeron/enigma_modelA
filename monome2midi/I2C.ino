@@ -25,8 +25,8 @@ void sendi2c(uint8_t model, uint8_t deviceIndex, uint8_t cmd, uint8_t devicePort
 //
 void receivei2cEvent(size_t count)
 {
-    //Wire.read(i2c_databuf, Wire.available());  // copy Rx data to databuf
-    //i2c_received = count;           // set received flag to count, this triggers print in main loop
+    Wire.read(i2c_databuf, Wire.available());  // copy Rx data to databuf
+    i2c_received = count;           // set received flag to count, this triggers print in main loop
     Serial.printf("i2c read: (%d)\n", count);
 }
 
@@ -70,5 +70,6 @@ void i2cTransmitDone(void)
 void i2cRequestDone(void)
 {
     Wire.read(i2c_databuf, Wire.available());
-    Serial.printf("'%s' OK\n",i2c_databuf);
+    i2c_received = 1;
+    //Serial.printf("'%s' OK (callback)\n",i2c_databuf);
 }
