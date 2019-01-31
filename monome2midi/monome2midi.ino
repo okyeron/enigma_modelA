@@ -23,6 +23,7 @@
 #include "MonomeSerial.h"
 #include "Interface.h"
 #include "App.h"
+#include "AppMidi.h"
 #include "GameOfLife.h"
 
 #define USBBAUD 115200
@@ -162,7 +163,7 @@ void setup() {
 
     if (LEADER) {
         Wire.begin(I2C_MASTER, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000); 
-        Wire.setDefaultTimeout(100000); // 100ms
+        Wire.setDefaultTimeout(10000); // 10ms
       	Wire.resetBus();
       	
         // register callbacks
@@ -264,7 +265,8 @@ void setup() {
     for (int i = 0; i < MONOMEARCENCOUDERCOUNT; i++) arcValues[i] = 0;
 
     interface = new Interface();
-    app = new GameOfLife(interface, 0, 1);
+    // app = new GameOfLife(interface, 0, 1);
+    app = new AppMidi(interface, 0, 1);
     mainClock = 0;
     mainClockPhase = 0;
 }
@@ -314,7 +316,7 @@ void loop() {
  /*
         // Check if error occured
         if(Wire.getError())
-            Serial.print("FAIL\n");
+            ; // Serial.print("FAIL\n");
         else
         {
             // If no error then read Rx data into buffer and print

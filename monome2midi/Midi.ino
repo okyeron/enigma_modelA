@@ -65,6 +65,7 @@ void midiHandleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.print(", velocity=");
     Serial.println(velocity, DEC);
 
+    app->noteOnEvent(channel, note, velocity);
 }
 
 void midiHandleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -74,6 +75,8 @@ void midiHandleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.print(note, DEC);
     Serial.print(", velocity=");
     Serial.println(velocity, DEC);
+
+    app->noteOffEvent(channel, note);
 }
 
 void midiHandleControlChange(byte channel, byte control, byte value) {
