@@ -269,6 +269,9 @@ void setup() {
     app = new AppMidi(interface, 0, 1);
     mainClock = 0;
     mainClockPhase = 0;
+
+    for (int i = 0; i < MONOMEDEVICECOUNT; i++)
+        monomeDevices[i].getDeviceInfo();
 }
 
 // MAIN LOOP

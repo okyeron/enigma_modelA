@@ -140,9 +140,14 @@ void MonomeSerial::refresh() {
 }
 
 void MonomeSerial::poll() {
-    if (available()) {
-        do { processSerial(); } while (available() > 16);
-    }
+    while (available()) processSerial();
+}
+
+void MonomeSerial::getDeviceInfo() {
+    write(uint8_t(0));
+    poll();
+    write(1);
+    poll();
 }
 
 void MonomeSerial::processSerial() {
@@ -170,10 +175,22 @@ void MonomeSerial::processSerial() {
             Serial.print(", number: ");
             Serial.print(devNum);
             Serial.println(" ");
+            // [null, "led-grid", "key-grid", "digital-out", "digital-in", "encoder", "analog-in", "analog-out", "tilt", "led-ring"]
+            if (devSect == 2) {
+                if (devNum == 1) Serial.println("GRID 64");
+                else if (devNum == 2) Serial.println("GRID 128");
+                else if (devNum == 4) Serial.println("GRID 256");
+                else Serial.println("GRID ???");
+            } else if (devSect == 5) {
+                if (devNum == 2) Serial.println("ARC 2");
+                else if (devNum == 4) Serial.println("ARC 4");
+                else if (devNum == 8) Serial.println("ARC 8");
+                else Serial.println("ARC ?");
+            }
             break;
 
         case 0x01:  // system / ID
-            // Serial.println("0x01");
+            Serial.println("MONOME system / ID");
             for (int i = 0; i < 32; i++) {  // has to be 32
                 Serial.print(read());
             }
@@ -211,6 +228,12 @@ void MonomeSerial::processSerial() {
             readY = read();  // b type
             break;
 
+        case 0x05:  // system / report ADDR
+            Serial.print("x size: ");
+            Serial.print(read());
+            Serial.print(" y size: ");
+            Serial.println(read());
+
         case 0x0F:  // system / report firmware version
             // Serial.println("0x0F");
             for (int i = 0; i < 8; i++) {  // 8 character string
@@ -234,7 +257,7 @@ void MonomeSerial::processSerial() {
             Serial.print(gridKeyX);
             Serial.print(" ");
             Serial.print(gridKeyY);
-            Serial.print(" up - ");
+            Serial.println(" up - ");
             break;
             
         case 0x21:
@@ -253,7 +276,7 @@ void MonomeSerial::processSerial() {
             Serial.print(gridKeyX);
             Serial.print(" ");
             Serial.print(gridKeyY);
-            Serial.print(" dn - ");
+            Serial.println(" dn - ");
             break;
 
         case 0x40:  //   d-line-in / change to low
