@@ -302,16 +302,19 @@ void loop() {
     }  // END BUTTONS LOOP
 
 
-    // Need to write something here to set which control to listen to?
+    // Write to 16n to select a port/fader
     
-    Wire.requestFrom(0x34, MEM_LEN); // Read from Follower (string len unknown, request full buffer)
+	Wire.beginTransmission(0x34);
+	i2c_databuf[0] = 2;
+	Wire.write(i2c_databuf, 1);
+	Wire.endTransmission();
+	Wire.requestFrom(0x34, 2); // Read from Follower (string len unknown, request full buffer)
 
-    // Wire.read happens in callback
-    
+    int16_t value = (i2c_databuf[0] << 8) + i2c_databuf[1];
     // i2c print received data - this is done in main loop to keep time spent in I2C ISR to minimum
-    if(i2c_received)
+    if(i2c_received && value > 0)
     {
-        Serial.printf("Follower received: '%d'\n", i2c_databuf[0]);
+        Serial.printf("Follower received: '%d'\n", value);
         i2c_received = 0;
     }
 
@@ -319,7 +322,7 @@ void loop() {
  /*
         // Check if error occured
         if(Wire.getError())
-            ; // Serial.print("FAIL\n");
+            Serial.print("FAIL\n");
         else
         {
             // If no error then read Rx data into buffer and print

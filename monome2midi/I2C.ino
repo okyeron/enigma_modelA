@@ -62,7 +62,7 @@ void print_scan_status(uint8_t target, uint8_t all)
 //
 void i2cTransmitDone(void)
 {
-    Serial.print("OK\n");
+    //Serial.print("OK\n");
 }
 
 // i2c trigger after Rx complete (incoming I2C data)
