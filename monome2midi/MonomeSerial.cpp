@@ -1,6 +1,12 @@
 #include "MonomeSerial.h"
 
-MonomeSerial::MonomeSerial(USBHost usbHost) : USBSerial(usbHost) {}
+MonomeSerial::MonomeSerial(USBHost usbHost) : USBSerial(usbHost) {
+    active = 0;
+    rows = 0;
+    columns = 0;
+    encoders = 0;
+    isGrid = 1;
+}
    
 void MonomeSerial::setGridLed(uint8_t x, uint8_t y, uint8_t level) {
     int index = x + (y << 4);
@@ -145,13 +151,17 @@ void MonomeSerial::poll() {
 
 void MonomeSerial::getDeviceInfo() {
     write(uint8_t(0));
-    //poll();
+    poll();
+    /*
     write(1);
-
+    poll();
     write(3);
+    poll();
     write(5);
+    poll();
     write(0x0F);
     poll();
+    */
 }
 
 void MonomeSerial::processSerial() {
@@ -172,30 +182,36 @@ void MonomeSerial::processSerial() {
     // b = command (ie. query, enable, led, key, frame)
     switch (identifierSent) {
         case 0x00:  // device information
-            // Serial.println("0x00");
+            Serial.println("0x00 system / query ---------------------- ");
             devSect = read(); // system/query response 0x00 -> 0x00
             devNum = read();  // grids
+            /*
             Serial.print("section: ");
             Serial.print(devSect);
             Serial.print(", number: ");
             Serial.print(devNum);
             Serial.println(" ");
+            */
             // [null, "led-grid", "key-grid", "digital-out", "digital-in", "encoder", "analog-in", "analog-out", "tilt", "led-ring"]
             if (devSect == 2) {
-                if (devNum == 1) Serial.println("GRID 64");
-                else if (devNum == 2) Serial.println("GRID 128");
-                else if (devNum == 4) Serial.println("GRID 256");
-                else Serial.println("GRID ???");
+                rows = devNum > 2 ? 16 : 8;
+                columns = devNum > 1 ? 16 : 8;
+                isGrid = 1;
+                Serial.print("GRID rows: ");
+                Serial.print(rows);
+                Serial.print(" columns: ");
+                Serial.println(columns);
             } else if (devSect == 5) {
-                if (devNum == 2) Serial.println("ARC 2");
-                else if (devNum == 4) Serial.println("ARC 4");
-                else if (devNum == 8) Serial.println("ARC 8");
-                else Serial.println("ARC ?");
+                encoders = devNum;
+                isGrid = 0;
+                Serial.print("ARC encoders: ");
+                Serial.println(encoders);
             }
+            active = 1;
             break;
 
         case 0x01:  // system / ID
-            Serial.println("MONOME system / ID");
+            Serial.println("0x01 system / ID --------------- ");
             Serial.print("'");
             for (int i = 0; i < 32 && available(); i++) {
             //for (int i = 0; i < 32; i++) {  // has to be 32
@@ -221,7 +237,7 @@ void MonomeSerial::processSerial() {
             break;
 
         case 0x03:  // system / report grid size
-            Serial.println("0x03");
+            Serial.println("0x03 system / grid offsets --------------- ");
             readX = read();  // an offset of 8 is valid only for 16 x 8 monome
             readY = read();  // an offset is invalid for y as it's only 8
             Serial.print("x: ");
@@ -238,14 +254,14 @@ void MonomeSerial::processSerial() {
             break;
 
         case 0x05:  // system / report ADDR
-            Serial.println("0x05");
+            Serial.println("0x05 system / grid size -------------- ");
             Serial.print("x size: ");
             Serial.print(read());
             Serial.print(" y size: ");
             Serial.println(read());
 
         case 0x0F:  // system / report firmware version
-            // Serial.println("0x0F");
+            Serial.println("0x0F system firmware version ");
             for (int i = 0; i < 8; i++) {  // 8 character string
                 Serial.print(read());
             }

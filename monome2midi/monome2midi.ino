@@ -269,10 +269,6 @@ void setup() {
     app = new AppMidi(interface, 0, 1);
     mainClock = 0;
     mainClockPhase = 0;
-  /*
-    for (int i = 0; i < MONOMEDEVICECOUNT; i++)
-        monomeDevices[i].getDeviceInfo();
-  */
 }
 
 // MAIN LOOP
@@ -441,16 +437,18 @@ void deviceInfo() {
     int devicetype = 0;  // 1=40h, 2=series, 3=mext
 
     for (uint8_t i = 0; i < USBDRIVERCOUNT; i++) {
+        MonomeSerial *monome = false;
+        for (int m = 0; m < MONOMEDEVICECOUNT; m++)
+            if (drivers[i] == &monomeDevices[m]) monome = &monomeDevices[m];
+        
         if (*drivers[i] != driver_active[i]) {
             if (driver_active[i]) {
                 Serial.printf("*** %s Device - disconnected ***\n",
                               driver_names[i]);
                 driver_active[i] = false;
+                if (monome) monome->active = 0;
             }
             else {
-                for (int i = 0; i < MONOMEDEVICECOUNT; i++)
-                  monomeDevices[i].getDeviceInfo();
-                  
                 Serial.printf("*** %s Device %x:%x - connected ***\n",
                               driver_names[i], drivers[i]->idVendor(),
                               drivers[i]->idProduct());
@@ -466,47 +464,61 @@ void deviceInfo() {
                 const char *pss = (const char *)drivers[i]->serialNumber();
                 if (pss && *pss) Serial.printf("  Serial: %s\n", pss);
 
+                if (monome) monome->begin(USBBAUD, USBFORMAT);
+
                 // check for monome types
                 if (String(maker) == "monome") {
                     //"m128%*1[-_]%d" = series, "mk%d" = kit, "m40h%d" = 40h,
                     //"m%d" = mext
                     if (sscanf(pss, "m40h%d", &serialnum)) {
                         Serial.println("  40h device");
+                        monome->rows = monome->columns = 8;
+                        monome->isGrid = monome->active = 1;
                         devicetype = 1;
                     }
                     else if (sscanf(pss, "m256%*1[-_]%d", &serialnum)) {
                         Serial.println("  monome series 256 device");
+                        monome->rows = monome->columns = 16;
+                        monome->isGrid = monome->active = 1;
                         devicetype = 2;
                     }
                     else if (sscanf(pss, "m128%*1[-_]%d", &serialnum)) {
                         Serial.println("  monome series 128 device");
+                        monome->rows = 8;
+                        monome->columns = 16;
+                        monome->isGrid = monome->active = 1;
                         devicetype = 2;
                     }
                     else if (sscanf(pss, "m64%*1[-_]%d", &serialnum)) {
                         Serial.println("  monome series 64 device");
+                        monome->rows = monome->columns = 8;
+                        monome->isGrid = monome->active = 1;
                         devicetype = 2;
                     }
                     else if (sscanf(pss, "mk%d", &serialnum)) {
                         Serial.println("   monome kit device");
+                        monome->rows = monome->columns = 8; // FIXME?
+                        monome->isGrid = monome->active = 1;
                         devicetype = 2;
                     }
                     else if (sscanf(pss, "m%d", &serialnum)) {
                         Serial.println("  mext device");
                         devicetype = 3;
+                        monome->getDeviceInfo();
+                    }
+                    if (devicetype != 3) {
+                        if (monome->isGrid) {
+                            Serial.print("GRID rows: ");
+                            Serial.print(monome->rows);
+                            Serial.print(" columns: ");
+                            Serial.println(monome->columns);
+                        } else {
+                            Serial.print("ARC encoders: ");
+                            Serial.println(monome->encoders);
+                        }
                     }
                 }
                 //Serial.println(devicetype);
-
-                // If this is a new Serial device.
-                if (drivers[i] == &monomeDevices[0]) {
-                    // Lets try first outputting something to our USerial to see
-                    // if it will go out...
-                    monomeDevices[0].begin(USBBAUD, USBFORMAT);
-                } else if (drivers[i] == &monomeDevices[1]) {
-                    // Lets try first outputting something to our USerial to see
-                    // if it will go out...
-                    monomeDevices[1].begin(USBBAUD, USBFORMAT);
-                }
             }
         }
     }
