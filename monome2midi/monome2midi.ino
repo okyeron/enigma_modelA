@@ -269,9 +269,10 @@ void setup() {
     app = new AppMidi(interface, 0, 1);
     mainClock = 0;
     mainClockPhase = 0;
-
+  /*
     for (int i = 0; i < MONOMEDEVICECOUNT; i++)
         monomeDevices[i].getDeviceInfo();
+  */
 }
 
 // MAIN LOOP
@@ -330,10 +331,10 @@ void loop() {
             Serial.printf("'%s' OK (main)\n",i2c_databuf);
         }
 */
-
+    
     // Print out information about different devices.
     deviceInfo();
-
+  
 
     // Read MIDI from USB HUB connected MIDI Devices
     while (midi01.read() && driver_active[4]) { activity = true; }
@@ -421,11 +422,12 @@ void loop() {
         mainClock = 0;
     }
     */
-
+  
     if (monomeRefresh > 50) {
         for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].refresh();
         monomeRefresh = 0;
     }
+   
 }
 
 
@@ -446,6 +448,9 @@ void deviceInfo() {
                 driver_active[i] = false;
             }
             else {
+                for (int i = 0; i < MONOMEDEVICECOUNT; i++)
+                  monomeDevices[i].getDeviceInfo();
+                  
                 Serial.printf("*** %s Device %x:%x - connected ***\n",
                               driver_names[i], drivers[i]->idVendor(),
                               drivers[i]->idProduct());

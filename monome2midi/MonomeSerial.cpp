@@ -145,8 +145,12 @@ void MonomeSerial::poll() {
 
 void MonomeSerial::getDeviceInfo() {
     write(uint8_t(0));
-    poll();
+    //poll();
     write(1);
+
+    write(3);
+    write(5);
+    write(0x0F);
     poll();
 }
 
@@ -159,7 +163,8 @@ void MonomeSerial::processSerial() {
     int8_t delta;
     uint8_t gridKeyX;
     uint8_t gridKeyY;
-    
+    String devID;
+     
     identifierSent = read();  // get command identifier: first byte
                               // of packet is identifier in the form:
                               // [(a << 4) + b]
@@ -191,14 +196,18 @@ void MonomeSerial::processSerial() {
 
         case 0x01:  // system / ID
             Serial.println("MONOME system / ID");
-            for (int i = 0; i < 32; i++) {  // has to be 32
-                Serial.print(read());
+            Serial.print("'");
+            for (int i = 0; i < 32 && available(); i++) {
+            //for (int i = 0; i < 32; i++) {  // has to be 32
+                devID = read();
+                Serial.print(devID);
             }
+            Serial.print("'");
             Serial.println(" ");
             break;
 
         case 0x02:  // system / report grid offset - 4 bytes
-            // Serial.println("0x02");
+            Serial.println("0x02");
             gridNum = read();  // n = grid number
             readX = read(); // an offset of 8 is valid only for 16 x 8 monome
             readY = read();  // an offset is invalid for y as it's only 8
@@ -212,7 +221,7 @@ void MonomeSerial::processSerial() {
             break;
 
         case 0x03:  // system / report grid size
-            // Serial.println("0x03");
+            Serial.println("0x03");
             readX = read();  // an offset of 8 is valid only for 16 x 8 monome
             readY = read();  // an offset is invalid for y as it's only 8
             Serial.print("x: ");
@@ -223,12 +232,13 @@ void MonomeSerial::processSerial() {
             break;
 
         case 0x04:  // system / report ADDR
-            // Serial.println("0x04");
+            Serial.println("0x04");
             readX = read();  // a ADDR
             readY = read();  // b type
             break;
 
         case 0x05:  // system / report ADDR
+            Serial.println("0x05");
             Serial.print("x size: ");
             Serial.print(read());
             Serial.print(" y size: ");
