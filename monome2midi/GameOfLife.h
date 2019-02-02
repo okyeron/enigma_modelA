@@ -9,6 +9,8 @@ class GameOfLife : public App {
         void clock(bool phase);
         void gridEvent(uint8_t device, uint8_t x, uint8_t y, uint8_t pressed);
         void arcEvent(uint8_t device, uint8_t encoder, int8_t delta);
+        void appOnEvent();
+        void appOffEvent();
 
     private:
         static const uint8_t MAXX = 16;

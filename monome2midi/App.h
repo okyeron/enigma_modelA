@@ -11,6 +11,8 @@ class App {
         void virtual arcEvent(uint8_t device, uint8_t encoder, int8_t delta);
         void virtual noteOnEvent(uint8_t channel, uint8_t note, uint8_t velocity);
         void virtual noteOffEvent(uint8_t channel, uint8_t note);
+        void virtual appOnEvent();
+        void virtual appOffEvent();
 
     protected:
         Interface *interface;

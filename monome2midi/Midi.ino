@@ -3,7 +3,7 @@
 void midiNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     // When using MIDIx4 or MIDIx16, usbMIDI.getCable() can be used
     // to read which of the virtual MIDI cables received this message.
-    
+
     Serial.print("Note On sent, ch=");
     Serial.print(channel, DEC);
     Serial.print(", note=");
@@ -65,7 +65,7 @@ void midiHandleNoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.print(", velocity=");
     Serial.println(velocity, DEC);
 
-    app->noteOnEvent(channel, note, velocity);
+    apps[activeApp]->noteOnEvent(channel, note, velocity);
 }
 
 void midiHandleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
@@ -76,7 +76,7 @@ void midiHandleNoteOff(uint8_t channel, uint8_t note, uint8_t velocity) {
     Serial.print(", velocity=");
     Serial.println(velocity, DEC);
 
-    app->noteOffEvent(channel, note);
+    apps[activeApp]->noteOffEvent(channel, note);
 }
 
 void midiHandleControlChange(byte channel, byte control, byte value) {
@@ -89,7 +89,7 @@ void midiHandleControlChange(byte channel, byte control, byte value) {
 }
 
 void midiHandleClock(void) {
-    app->clock(1); // FIXME
+    // apps[activeApp]->clock(1); // FIXME
 }
 
 void midiHandleStart(void) {

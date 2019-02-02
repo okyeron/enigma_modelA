@@ -132,7 +132,9 @@ const uint8_t gridY = 8;        // standard for 128
 /* --- */
 
 Interface *interface;
-App *app;
+const int APPCOUNT = 2;
+App *apps[APPCOUNT];
+int activeApp = 0;
 elapsedMillis mainClock;
 bool mainClockPhase;
 
@@ -264,9 +266,18 @@ void setup() {
     for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].clearAllLeds();
     for (int i = 0; i < MONOMEARCENCOUDERCOUNT; i++) arcValues[i] = 0;
 
+    int arcDevice = 0, gridDevice = 0;
+    for (int i = 0; i < MONOMEDEVICECOUNT; i++) {
+        if (!monomeDevices[i].active) continue;
+        if (monomeDevices[i].isGrid)
+            gridDevice = i;
+        else
+            arcDevice = i;
+    }
+
     interface = new Interface();
-    // app = new GameOfLife(interface, 0, 1);
-    app = new AppMidi(interface, 0, 1);
+    apps[0] = new GameOfLife(interface, gridDevice, arcDevice);
+    apps[1] = new AppMidi(interface, gridDevice, arcDevice);
     mainClock = 0;
     mainClockPhase = 0;
 }
@@ -295,6 +306,13 @@ void loop() {
             Serial.print("button:");
             Serial.print(z + 1);
             Serial.println(" pressed");
+            if (z == 0) {
+                apps[activeApp]->appOffEvent();
+                if (++activeApp >= APPCOUNT) {
+                    activeApp = 0;
+                    apps[activeApp]->appOnEvent();
+                }
+            }
         }
     }  // END BUTTONS LOOP
 
@@ -353,7 +371,7 @@ void loop() {
         monomeDevices[i].poll();
         while (monomeDevices[i].gridEventAvailable()) {
             MonomeGridEvent event = monomeDevices[i].readGridEvent();
-            app->gridEvent(i, event.x, event.y, event.pressed);
+            apps[activeApp]->gridEvent(i, event.x, event.y, event.pressed);
 
             /*
             if (event.pressed) {
@@ -380,7 +398,7 @@ void loop() {
 
         while (monomeDevices[i].arcEventAvailable()) {
             MonomeArcEvent event = monomeDevices[i].readArcEvent();
-            app->arcEvent(i, event.index, event.delta);
+            apps[activeApp]->arcEvent(i, event.index, event.delta);
 
             /*
             if (event.index < MONOMEARCENCOUDERCOUNT) {
@@ -411,13 +429,11 @@ void loop() {
         digitalWriteFast(leds[2], LOW);  // LED off
     }
 
-    /*
     if (mainClock > 150) {
         mainClockPhase = !mainClockPhase;
-        app->clock(mainClockPhase);
+        apps[activeApp]->clock(mainClockPhase);
         mainClock = 0;
     }
-    */
   
     if (monomeRefresh > 50) {
         for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].refresh();
@@ -504,7 +520,7 @@ void deviceInfo() {
                     else if (sscanf(pss, "m%d", &serialnum)) {
                         Serial.println("  mext device");
                         devicetype = 3;
-                        monome->getDeviceInfo();
+                        // monome->getDeviceInfo();
                     }
                     if (devicetype != 3) {
                         if (monome->isGrid) {

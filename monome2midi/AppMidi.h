@@ -6,9 +6,12 @@
 class AppMidi : public App {
     public:
         AppMidi(Interface *interface, uint8_t gridDevice, uint8_t arcDevice);
+        void clock(bool phase);
         void gridEvent(uint8_t device, uint8_t x, uint8_t y, uint8_t pressed);
         void noteOnEvent(uint8_t channel, uint8_t note, uint8_t velocity);
         void noteOffEvent(uint8_t channel, uint8_t note);
+        void appOnEvent();
+        void appOffEvent();
 
     private:
         uint8_t mainGrid;

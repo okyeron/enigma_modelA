@@ -146,10 +146,12 @@ void MonomeSerial::refresh() {
 }
 
 void MonomeSerial::poll() {
-    while (available()) processSerial();
+    // if (available()) do { processSerial(); } while (available() > 16);
+    while (available()) { processSerial(); };
 }
 
 void MonomeSerial::getDeviceInfo() {
+    Serial.println("MonomeSerial::getDeviceInfo");
     write(uint8_t(0));
     poll();
     /*
@@ -182,9 +184,9 @@ void MonomeSerial::processSerial() {
     // b = command (ie. query, enable, led, key, frame)
     switch (identifierSent) {
         case 0x00:  // device information
-            Serial.println("0x00 system / query ---------------------- ");
             devSect = read(); // system/query response 0x00 -> 0x00
             devNum = read();  // grids
+            Serial.println("0x00 system / query ---------------------- ");
             /*
             Serial.print("section: ");
             Serial.print(devSect);

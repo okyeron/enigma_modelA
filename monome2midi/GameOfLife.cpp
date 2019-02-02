@@ -7,6 +7,14 @@ GameOfLife::GameOfLife(Interface *interface, uint8_t gridDevice, uint8_t arcDevi
     arcShow[0] = arcShow[1] = 0;
 }
 
+void GameOfLife::appOnEvent() {
+    Serial.println("GameOfLife app ON");
+    renderGrid();
+}
+
+void GameOfLife::appOffEvent() {
+}
+
 void GameOfLife::clock(bool phase) {
     if (++counter >= 24) counter = 0;
 

@@ -7,6 +7,19 @@ AppMidi::AppMidi(Interface *interface, uint8_t gridDevice, uint8_t arcDevice) : 
     for (int i = 0; i < 12; i++) noteMap[i] = i;
 }
 
+void AppMidi::appOnEvent() {
+    Serial.println("AppMidi app ON");
+    renderGrid();
+}
+
+void AppMidi::appOffEvent() {
+}
+
+void AppMidi::clock(bool phase) {
+    // FIXME once appOnEvent is fixed
+    renderGrid();
+}
+
 void AppMidi::gridEvent(uint8_t device, uint8_t x, uint8_t y, uint8_t pressed) {
     if (pressed && x == 0 && y < 5) {
         octaveShift = 2 - y;
