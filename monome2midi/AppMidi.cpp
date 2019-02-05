@@ -3,12 +3,13 @@
 AppMidi::AppMidi(Interface *interface, uint8_t gridDevice, uint8_t arcDevice) : App(interface) {
     mainGrid = gridDevice;
     mainArc = arcDevice;
-
+    
     for (int i = 0; i < 12; i++) noteMap[i] = i;
 }
 
 void AppMidi::appOnEvent() {
     Serial.println("AppMidi app ON");
+    appName = "AppMidi";
     renderGrid();
 }
 

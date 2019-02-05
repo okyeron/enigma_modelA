@@ -14,6 +14,8 @@ class App {
         void virtual appOnEvent();
         void virtual appOffEvent();
 
+        const char* appName;
+        
     protected:
         Interface *interface;
         App(Interface *interface);

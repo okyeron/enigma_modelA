@@ -9,6 +9,8 @@
 #include <MIDI.h>
 #include <USBHost_t36.h>
 #include <i2c_t3.h>
+#include <U8g2lib.h> // oled display
+
 
 // OSC ??
 #include <OSCBoards.h>
@@ -142,6 +144,9 @@ bool mainClockPhase;
 void print_scan_status(uint8_t target, uint8_t all);
 uint8_t found, target, all;
 
+U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+int counter = 0;
+
 // SETUP
 
 void setup() {
@@ -156,6 +161,13 @@ void setup() {
     digitalWrite(LED1, HIGH);
     pinMode(LED2, OUTPUT);  // LED2 pin
     digitalWrite(LED2, HIGH);
+
+    u8g2.begin();  // oled display
+
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_helvB10_tf);
+    u8g2.drawStr(0,16,"enigma, init...");
+    u8g2.sendBuffer(); 
 
     MIDI.begin(MIDI_CHANNEL_OMNI);
 
@@ -259,8 +271,6 @@ void setup() {
     usbMIDI.setHandleClock(midiHandleClock);
     usbMIDI.setHandleStart(midiHandleStart);
 
-    // writeInt(0x12);
-
     delay(2000);
 
     for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].clearAllLeds();
@@ -298,6 +308,8 @@ void loop() {
             Serial.print("button:");
             Serial.print(z + 1);
             Serial.println(" released");
+                    Serial.print("loaded app: ");
+                    Serial.println(apps[activeApp]->appName);
         }
         if (buttons[z]->fallingEdge()) {  // press
             // do press things - like turn on LED
@@ -439,7 +451,21 @@ void loop() {
         for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].refresh();
         monomeRefresh = 0;
     }
-   
+    String valueString = String(counter++);
+    char copy[50];
+    valueString.toCharArray(copy, 50);
+    
+  u8g2.firstPage();
+    do {
+      u8g2.setFont(u8g2_font_helvB12_tf);  // choose a suitable font
+      //u8g2.drawStr(0,10,"value = "); 
+      //u8g2.drawStr(64,10,copy);  
+      u8g2.setFontPosCenter();
+      u8g2.drawStr(10,16,apps[activeApp]->appName);
+    } while ( u8g2.nextPage() );
+    
+
+
 }
 
 

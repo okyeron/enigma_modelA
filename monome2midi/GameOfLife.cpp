@@ -9,6 +9,7 @@ GameOfLife::GameOfLife(Interface *interface, uint8_t gridDevice, uint8_t arcDevi
 
 void GameOfLife::appOnEvent() {
     Serial.println("GameOfLife app ON");
+    appName = "GameOfLife";
     renderGrid();
 }
 

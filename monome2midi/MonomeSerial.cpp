@@ -46,7 +46,7 @@ void MonomeSerial::refresh() {
     uint8_t buf[35];
     int ind, led;
 
-    if (gridDirty) {
+    if (gridDirty && isGrid) {
         buf[0] = 0x1A;
         buf[1] = 0;
         buf[2] = 0;
@@ -90,7 +90,7 @@ void MonomeSerial::refresh() {
         gridDirty = false;
     }
 
-    if (arcDirty) {
+    if (arcDirty && !isGrid) {
         buf[0] = 0x92;
 
         buf[1] = 0;
