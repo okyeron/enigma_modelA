@@ -44,17 +44,13 @@
 #define HIDDEVICECOUNT 3
 #define MONOMEDEVICECOUNT 2
 #define MONOMEARCENCOUDERCOUNT 8
-#define I2CADDR 0x55  // THIS DEVICE I2C ADDRESS
+#define I2CADDR 0x11  // THIS DEVICE I2C ADDRESS
 
 // i2c
 // LEADER MODE allows you to broadcast values
 // set to 0 for follower mode
 
-#define LEADER 1
-
-// i2c Function prototypes
-//void receivei2cEvent(size_t count);
-//void requesti2cEvent(void);
+#define LEADER 0
 
 // i2c Memory
 #define MEM_LEN 256
@@ -197,7 +193,7 @@ void setup() {
         if(!found) Serial.print("No i2c devices found.\n");
     } else {
         // follower mode
-        Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
+        Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 100000);
         Wire.setDefaultTimeout(10000); // 10ms
         // register events
         Wire.onReceive(receivei2cEvent);
@@ -328,27 +324,36 @@ void loop() {
 
 
     // Write to 16n to select a port/fader
-    
+
+    /*
 	Wire.beginTransmission(0x34);
 	i2c_databuf[0] = 2;
 	Wire.write(i2c_databuf, 1);
 	Wire.endTransmission();
 	Wire.requestFrom(0x34, 2); // Read from Follower (string len unknown, request full buffer)
-
     int16_t value = (i2c_databuf[0] << 8) + i2c_databuf[1];
+    */
+    
     // i2c print received data - this is done in main loop to keep time spent in I2C ISR to minimum
-    if(i2c_received && value > 0)
+    if(i2c_received)
     {
-        Serial.printf("Follower received: '%d'\n", value);
+        Serial.printf("Follower received: %d\n", i2c_received);
+        for(int i = 0; i < i2c_received; i++) {
+            Serial.print("Received: ");
+            Serial.println(i2c_databuf[i], HEX);
+        }
         i2c_received = 0;
+        if (i2c_databuf[0] == 3) // MIDI.ON
+            midiNoteOn(i2c_databuf[1], i2c_databuf[2], i2c_databuf[3]);
+        else if (i2c_databuf[0] == 2) // MIDI.CC
+            midiControlChange(i2c_databuf[1], i2c_databuf[2], i2c_databuf[3]);
     }
 
-
- /*
+/*
         // Check if error occured
-        if(Wire.getError())
-            Serial.print("FAIL\n");
-        else
+        if(int x = Wire.getError()) {
+            Serial.print("FAIL "); Serial.println(x);
+        } else
         {
             // If no error then read Rx data into buffer and print
             Wire.read(i2c_databuf, Wire.available());
@@ -452,7 +457,8 @@ void loop() {
     String valueString = String(counter++);
     char copy[50];
     valueString.toCharArray(copy, 50);
-    
+
+    /*
   u8g2.firstPage();
     do {
       u8g2.setFont(u8g2_font_helvB12_tf);  // choose a suitable font
@@ -461,8 +467,7 @@ void loop() {
       u8g2.setFontPosCenter();
       u8g2.drawStr(10,16,apps[activeApp]->appName);
     } while ( u8g2.nextPage() );
-    
-
+    */
 
 }
 
