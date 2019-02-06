@@ -308,8 +308,6 @@ void loop() {
             Serial.print("button:");
             Serial.print(z + 1);
             Serial.println(" released");
-                    Serial.print("loaded app: ");
-                    Serial.println(apps[activeApp]->appName);
         }
         if (buttons[z]->fallingEdge()) {  // press
             // do press things - like turn on LED
@@ -320,10 +318,10 @@ void loop() {
             Serial.println(" pressed");
             if (z == 0) {
                 apps[activeApp]->appOffEvent();
-                if (++activeApp >= APPCOUNT) {
-                    activeApp = 0;
-                    apps[activeApp]->appOnEvent();
-                }
+                if (++activeApp >= APPCOUNT) activeApp = 0;
+                apps[activeApp]->appOnEvent();
+                Serial.print("loaded app: ");
+                Serial.println(apps[activeApp]->appName);
             }
         }
     }  // END BUTTONS LOOP
