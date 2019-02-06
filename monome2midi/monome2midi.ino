@@ -140,6 +140,7 @@ bool mainClockPhase;
 void print_scan_status(uint8_t target, uint8_t all);
 uint8_t found, target, all;
 
+byte i2cadr1 = (0x3C *2); //display 1 is 0x3C
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 int counter = 0;
 
@@ -158,6 +159,7 @@ void setup() {
     pinMode(LED2, OUTPUT);  // LED2 pin
     digitalWrite(LED2, HIGH);
 
+    u8g2.setI2CAddress(i2cadr1);
     u8g2.begin();  // oled display
 
     u8g2.clearBuffer();
@@ -326,11 +328,11 @@ void loop() {
     // Write to 16n to select a port/fader
 
     /*
-	Wire.beginTransmission(0x34);
-	i2c_databuf[0] = 2;
-	Wire.write(i2c_databuf, 1);
-	Wire.endTransmission();
-	Wire.requestFrom(0x34, 2); // Read from Follower (string len unknown, request full buffer)
+	  Wire.beginTransmission(0x34);
+	  i2c_databuf[0] = 2;
+	  Wire.write(i2c_databuf, 1);
+	  Wire.endTransmission();
+	  Wire.requestFrom(0x34, 2); // Read from Follower (string len unknown, request full buffer)
     int16_t value = (i2c_databuf[0] << 8) + i2c_databuf[1];
     */
     
@@ -454,10 +456,12 @@ void loop() {
         for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].refresh();
         monomeRefresh = 0;
     }
+    /*
     String valueString = String(counter++);
     char copy[50];
     valueString.toCharArray(copy, 50);
-
+    */
+    
     /*
   u8g2.firstPage();
     do {
