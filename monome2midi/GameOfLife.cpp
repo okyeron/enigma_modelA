@@ -1,6 +1,7 @@
 #include "GameOfLife.h"
 
 GameOfLife::GameOfLife(Interface *interface, uint8_t gridDevice, uint8_t arcDevice) : App(interface) {
+    appName = "GameOfLife";
     mainGrid = gridDevice;
     mainArc = arcDevice;
     arcValues[0] = arcValues[1] = 0;
@@ -9,7 +10,6 @@ GameOfLife::GameOfLife(Interface *interface, uint8_t gridDevice, uint8_t arcDevi
 
 void GameOfLife::appOnEvent() {
     Serial.println("GameOfLife app ON");
-    appName = "GameOfLife";
     renderGrid();
 }
 
