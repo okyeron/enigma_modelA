@@ -6,6 +6,7 @@ MonomeSerial::MonomeSerial(USBHost usbHost) : USBSerial(usbHost) {
     columns = 0;
     encoders = 0;
     isGrid = 1;
+    clearAllLeds();
 }
    
 void MonomeSerial::setGridLed(uint8_t x, uint8_t y, uint8_t level) {
@@ -43,10 +44,12 @@ void MonomeSerial::refreshArc() {
 }
 
 void MonomeSerial::refresh() {
+    if (!active) return;
+  
     uint8_t buf[35];
     int ind, led;
 
-    if (gridDirty && isGrid) {
+    if (isGrid && gridDirty) {
         buf[0] = 0x1A;
         buf[1] = 0;
         buf[2] = 0;
@@ -90,7 +93,7 @@ void MonomeSerial::refresh() {
         gridDirty = false;
     }
 
-    if (arcDirty && !isGrid) {
+    if (!isGrid && arcDirty) {
         buf[0] = 0x92;
 
         buf[1] = 0;
@@ -146,7 +149,6 @@ void MonomeSerial::refresh() {
 }
 
 void MonomeSerial::poll() {
-    // if (available()) do { processSerial(); } while (available() > 16);
     while (available()) { processSerial(); };
 }
 

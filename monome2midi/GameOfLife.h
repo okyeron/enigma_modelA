@@ -5,7 +5,7 @@
 
 class GameOfLife : public App {
     public:
-        GameOfLife(Interface *interface, uint8_t gridDevice, uint8_t arcDevice);
+        GameOfLife(Interface *interface, uint8_t appId);
         void clock(bool phase);
         void gridEvent(uint8_t device, uint8_t x, uint8_t y, uint8_t pressed);
         void arcEvent(uint8_t device, uint8_t encoder, int8_t delta);
@@ -18,9 +18,6 @@ class GameOfLife : public App {
         static const uint8_t NOTES = 4;
         uint8_t scale[MAXX]; // = {0, 3, 5, 8, 12, 10, 8, 15 };
 
-        uint8_t mainGrid;
-        uint8_t mainArc;
-        
         uint8_t states[MAXX][MAXY][2];
         uint8_t gen;
         uint8_t notes[NOTES];

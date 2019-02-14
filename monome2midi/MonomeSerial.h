@@ -48,6 +48,7 @@ class MonomeSerial : public USBSerial, public MonomeEventQueue {
         MonomeSerial(USBHost usbHost);
         void poll();
         void refresh();
+        void getDeviceInfo();
 
         void setGridLed(uint8_t x, uint8_t y, uint8_t level);
         void clearGridLed(uint8_t x, uint8_t y);
@@ -57,7 +58,6 @@ class MonomeSerial : public USBSerial, public MonomeEventQueue {
         void clearArcRing(uint8_t ring);
         void refreshGrid();
         void refreshArc();
-        void getDeviceInfo();
 
         bool active;
         uint8_t rows;

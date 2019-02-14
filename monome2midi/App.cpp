@@ -1,7 +1,8 @@
 #include "App.h"
 
-App::App(Interface *interface) {
+App::App(Interface *interface, uint8_t appId) {
     this->interface = interface;
+    this->appId = appId;
 }
 
 void App::clock(bool phase) { }

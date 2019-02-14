@@ -1,9 +1,7 @@
 #include "AppMidi.h"
 
-AppMidi::AppMidi(Interface *interface, uint8_t gridDevice, uint8_t arcDevice) : App(interface) {
+AppMidi::AppMidi(Interface *interface, uint8_t appId) : App(interface, appId) {
     appName = "AppMidi";
-    mainGrid = gridDevice;
-    mainArc = arcDevice;
     for (int i = 0; i < 12; i++) noteMap[i] = i;
 }
 
@@ -78,18 +76,18 @@ void AppMidi::noteOffEvent(uint8_t channel, uint8_t note) {
 }
 
 void AppMidi::renderGrid() {
-    interface->clearAllLeds(mainGrid);
+    interface->clearAllLeds(appId);
 
     for (int y = 0; y < 5; y++)
-        interface->setGridLed(mainGrid, 0, y, y == 2 - octaveShift ? 15 : 4);
+        interface->setGridLed(appId, 0, y, y == 2 - octaveShift ? 15 : 4);
 
     for (int x = 0; x < 12; x++) {
-        interface->setGridLed(mainGrid, 2 + x, 0, (x == (lastRealNote % 12) ? 11 : 2)+ (x == selectedScale ? 4 : 0));
-        interface->setGridLed(mainGrid, 2 + x, 1, (x == ((lastNote - transpose) % 12) ? 11 : 2)+ (x == noteMap[selectedScale] ? 4 : 0));
-        interface->setGridLed(mainGrid, 2 + x, 3, (x == transpose ? 11 : 2));
-        interface->setGridLed(mainGrid, 2 + x, 5, x >= velocityLow && x <= velocityHigh ? 11 : 2);
-        interface->setGridLed(mainGrid, 2 + x, 7, x >= ccLow && x <= ccHigh ? 11 : 2);
+        interface->setGridLed(appId, 2 + x, 0, (x == (lastRealNote % 12) ? 11 : 2)+ (x == selectedScale ? 4 : 0));
+        interface->setGridLed(appId, 2 + x, 1, (x == ((lastNote - transpose) % 12) ? 11 : 2)+ (x == noteMap[selectedScale] ? 4 : 0));
+        interface->setGridLed(appId, 2 + x, 3, (x == transpose ? 11 : 2));
+        interface->setGridLed(appId, 2 + x, 5, x >= velocityLow && x <= velocityHigh ? 11 : 2);
+        interface->setGridLed(appId, 2 + x, 7, x >= ccLow && x <= ccHigh ? 11 : 2);
     }
     
-    interface->refreshGrid(mainGrid);
+    interface->refreshGrid(appId);
 }

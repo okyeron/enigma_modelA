@@ -1,9 +1,7 @@
 #include "GameOfLife.h"
 
-GameOfLife::GameOfLife(Interface *interface, uint8_t gridDevice, uint8_t arcDevice) : App(interface) {
+GameOfLife::GameOfLife(Interface *interface, uint8_t appId) : App(interface, appId) {
     appName = "GameOfLife";
-    mainGrid = gridDevice;
-    mainArc = arcDevice;
     arcValues[0] = arcValues[1] = 0;
     arcShow[0] = arcShow[1] = 0;
 }
@@ -178,14 +176,14 @@ void GameOfLife::playNotes(int counter) {
 }
 
 void GameOfLife::renderGrid() {
-    interface->clearAllLeds(mainGrid);
+    interface->clearAllLeds(appId);
     for (int x = 0; x < MAXX; x++)
         for (int y = 0; y < MAXY - 1; y++)
-            interface->setGridLed(mainGrid, x, y, states[x][y][gen]);
+            interface->setGridLed(appId, x, y, states[x][y][gen]);
 
     for (int x = 0; x < MAXX; x++)
-        interface->setGridLed(mainGrid, x, MAXY - 1, scale[x] ? 8 : 0);
-    interface->refreshGrid(mainGrid);
+        interface->setGridLed(appId, x, MAXY - 1, scale[x] ? 8 : 0);
+    interface->refreshGrid(appId);
 }
 
 uint8_t GameOfLife::neighbours(uint8_t x, uint8_t y, uint8_t gen) {

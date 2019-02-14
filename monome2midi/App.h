@@ -17,8 +17,10 @@ class App {
         const char* appName;
         
     protected:
+        App(Interface *interface, uint8_t appId);
+
         Interface *interface;
-        App(Interface *interface);
+        uint8_t appId;
 };
 
 #endif

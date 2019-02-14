@@ -43,14 +43,13 @@
 #define USBDRIVERCOUNT 10
 #define HIDDEVICECOUNT 3
 #define MONOMEDEVICECOUNT 2
-#define MONOMEARCENCOUDERCOUNT 8
-#define I2CADDR 0x11  // THIS DEVICE I2C ADDRESS
+#define I2CADDR 0x55  // THIS DEVICE I2C ADDRESS
 
 // i2c
 // LEADER MODE allows you to broadcast values
 // set to 0 for follower mode
 
-#define LEADER 0
+#define LEADER 1
 
 // i2c Memory
 #define MEM_LEN 256
@@ -63,9 +62,10 @@ USBHost myusb;  // usb host mode
 USBHub hub1(myusb);
 USBHub hub2(myusb);
 MonomeSerial monomeDevices[MONOMEDEVICECOUNT] = { MonomeSerial(myusb), MonomeSerial(myusb) };
+bool monomeDeviceActive[MONOMEDEVICECOUNT];
+MonomeSerial *grids[MONOMEDEVICECOUNT];
+MonomeSerial *arcs[MONOMEDEVICECOUNT];
 elapsedMillis monomeRefresh;
-int arcValues[MONOMEARCENCOUDERCOUNT];
-
 MIDIDevice midi01(myusb);
 MIDIDevice midi02(myusb);
 MIDIDevice midi03(myusb);
@@ -195,7 +195,7 @@ void setup() {
         if(!found) Serial.print("No i2c devices found.\n");
     } else {
         // follower mode
-        Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 100000);
+        Wire.begin(I2C_SLAVE, I2CADDR, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
         Wire.setDefaultTimeout(10000); // 10ms
         // register events
         Wire.onReceive(receivei2cEvent);
@@ -269,25 +269,17 @@ void setup() {
     usbMIDI.setHandleClock(midiHandleClock);
     usbMIDI.setHandleStart(midiHandleStart);
 
-    delay(2000);
 
-    for (int i = 0; i < MONOMEDEVICECOUNT; i++) monomeDevices[i].clearAllLeds();
-    for (int i = 0; i < MONOMEARCENCOUDERCOUNT; i++) arcValues[i] = 0;
-
-    int arcDevice = 0, gridDevice = 0;
-    for (int i = 0; i < MONOMEDEVICECOUNT; i++) {
-        if (!monomeDevices[i].active) continue;
-        if (monomeDevices[i].isGrid)
-            gridDevice = i;
-        else
-            arcDevice = i;
-    }
+    // delay(2000);
 
     interface = new Interface();
-    apps[0] = new GameOfLife(interface, gridDevice, arcDevice);
-    apps[1] = new AppMidi(interface, gridDevice, arcDevice);
+    apps[0] = new GameOfLife(interface, 0);
+    apps[1] = new AppMidi(interface, 1);
     mainClock = 0;
     mainClockPhase = 0;
+
+    for (int i = 0; i < MONOMEDEVICECOUNT; i++)
+        monomeDeviceActive[i] = false;
 }
 
 // MAIN LOOP
@@ -306,6 +298,8 @@ void loop() {
             Serial.print("button:");
             Serial.print(z + 1);
             Serial.println(" released");
+                    Serial.print("loaded app: ");
+                    Serial.println(apps[activeApp]->appName);
         }
         if (buttons[z]->fallingEdge()) {  // press
             // do press things - like turn on LED
@@ -318,8 +312,6 @@ void loop() {
                 apps[activeApp]->appOffEvent();
                 if (++activeApp >= APPCOUNT) activeApp = 0;
                 apps[activeApp]->appOnEvent();
-                Serial.print("loaded app: ");
-                Serial.println(apps[activeApp]->appName);
             }
         }
     }  // END BUTTONS LOOP
@@ -381,6 +373,40 @@ void loop() {
         // are not responding to MIDI
         activity = true;
     }
+
+    // grids / arcs
+
+    for (int i = 0; i < MONOMEDEVICECOUNT; i++) {
+        if (monomeDevices[i].active == monomeDeviceActive[i]) continue;
+        if (monomeDeviceActive[i]) {
+            // something got disconnected..
+            if (monomeDevices[i].isGrid)
+                Serial.println("grid disconnected");
+            else
+                Serial.println("arc disconnected");
+
+                /*
+            for (int j = 0; j < MONOMEDEVICECOUNT; j++) {
+                if (grids[j] == &monomeDevices[i]) grids[i] = 0;
+                if (arcs[j] == &monomeDevices[i]) arcs[i] = 0;
+               
+            }*/
+        } else {
+            // something got connected
+            if (monomeDevices[i].isGrid)
+                Serial.println("grid connected");
+            else
+                Serial.println("arc connected");
+            /*    
+            if (monomeDevices[i].isGrid)
+                gridDevice = i;
+            else
+                arcDevice = i;*/
+        }
+        monomeDeviceActive[i] = monomeDevices[i].active;
+    }
+
+
 
 
     // process incoming serial from Monomes
@@ -486,7 +512,7 @@ void deviceInfo() {
     int devicetype = 0;  // 1=40h, 2=series, 3=mext
 
     for (uint8_t i = 0; i < USBDRIVERCOUNT; i++) {
-        MonomeSerial *monome = false;
+        MonomeSerial *monome = 0;
         for (int m = 0; m < MONOMEDEVICECOUNT; m++)
             if (drivers[i] == &monomeDevices[m]) monome = &monomeDevices[m];
         
@@ -553,7 +579,7 @@ void deviceInfo() {
                     else if (sscanf(pss, "m%d", &serialnum)) {
                         Serial.println("  mext device");
                         devicetype = 3;
-                        // monome->getDeviceInfo();
+                        monome->getDeviceInfo();
                     }
                     if (devicetype != 3) {
                         if (monome->isGrid) {
