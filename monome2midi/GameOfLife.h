@@ -11,7 +11,9 @@ class GameOfLife : public App {
         void arcEvent(uint8_t device, uint8_t encoder, int8_t delta);
         void appOnEvent();
         void appOffEvent();
-
+        void noteOnEvent(uint8_t channel, uint8_t note, uint8_t velocity);
+        void noteOffEvent(uint8_t channel, uint8_t note);
+        
     private:
         static const uint8_t MAXX = 16;
         static const uint8_t MAXY = 8;

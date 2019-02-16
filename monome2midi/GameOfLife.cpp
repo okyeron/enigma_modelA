@@ -121,6 +121,14 @@ void GameOfLife::arcEvent(uint8_t device, uint8_t encoder, int8_t delta) {
     renderGrid();
 }
 
+void GameOfLife::noteOnEvent(uint8_t channel, uint8_t note, uint8_t velocity) {
+    gridEvent(0, note & 7, note >> 3, 1);
+}
+
+void GameOfLife::noteOffEvent(uint8_t channel, uint8_t note) {
+    gridEvent(0, note & 7, note >> 3, 0);
+}
+
 void GameOfLife::playNotes(int counter) {
     /*
     for (int i = NOTES - 1; i > 0; i--) notes[i] = notes[i - 1];
