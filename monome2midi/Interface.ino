@@ -18,8 +18,8 @@ void Interface::setArcLed(uint8_t device, uint8_t enc, uint8_t led, uint8_t leve
 
 void Interface::clearAllLeds(uint8_t device) {
     for (int i = 0; i < MONOMEDEVICECOUNT; i++) {
-        if (monomeDevices[i].active) {
-            monomeDevices[device].clearAllLeds();
+        if (monomeDevices[i].active && monomeDevices[i].isGrid) { // FIXME !!
+            monomeDevices[i].clearAllLeds();
             // break;
         }
     }
